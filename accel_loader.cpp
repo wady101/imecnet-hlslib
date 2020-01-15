@@ -1,11 +1,16 @@
-#include <accel_loader.h>
-#include <string.h>
+#include "accel_loader.h"
+
 #include <iostream>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <array>
+#include <fstream>
+#include <algorithm>
 
-#include <filesystem>
-namespace fs = std::filesystem;
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+using namespace std;
 // std::vector<int> testPrebinarized_nolabel(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
 //   if(labelBits > bitsPerExtMemWord) {
 //     throw "labelBits > bitsPerExtMemWord not yet supported";
@@ -170,16 +175,126 @@ namespace fs = std::filesystem;
 //   delete[] binImages;
 //   delete[] binLabels;
 // }
+int char_freq (std::string str)
+{ int count = 0;
+      for (int i = 0; i < str.size(); i++)
+    {
+        if (str[i] ==  ',')
+        {
+            ++ count;
+        }
+    }
+return count;
+}
+std::vector<unsigned char> readFile(const char* filename)
+{
+    // open the file:
+    std::streampos fileSize;
+    std::ifstream file(filename, std::ios::binary);
 
+    // get its size:
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // read the data:
+    unsigned char e = 0;
+    for (unsigned int line = 0; line <= fileSize; line++)
+      {file.read((char *)&e, sizeof(unsigned char));
+      unsigned int asfjfalfj = e; 
+      printf("%u",e);}
+    std::vector<unsigned char> fileData(fileSize);
+    file.read((char*) &fileData[0], fileSize);
+    return fileData;
+}
 //ConvLayer_6_Bram_15_Dimension_torch.Size([192, 192, 3, 3]).bin
 
 // Order has to remain -> BatchNorm followed Conv
 void BinOpener(std::string dir)
 {
-  for (const auto & entry : fs::directory_iterator(dir))
-        std::cout << entry.dir() << std::endl;
-  for (unsigned int i=0, i<=TOTALLAYERS.size()-1, i++)
-  {
-    ifstream wtfile(dir+"/HLS_BNLayer"+to_string(TOTALLAYERS[i]+"_Dimension_torch.Size([") )
-  }
+  std::vector<std::string> paths; 
+  std::vector<int> BNw_dim1;
+  std::vector<int> BNt_dim1;
+  std::vector<int> CNw_dim1;
+  std::vector<int> CNw_dim2;
+  std::vector<int> CNw_dim3;
+  std::vector<int> CNw_dim4;
+
+      for ( int i=0; i<=(sizeof(TOTALLAYERS)/sizeof(*TOTALLAYERS))-1; i++)
+        {
+          //while(bnl_flag & bnl_flag != 1)
+          for (const auto & entry : fs::directory_iterator(dir))
+          {
+        // std::cout << entry.path() << std::endl;
+        std::string str = entry.path();
+        
+        //std::cout << str.find("/HLS_BNLayer");
+    
+         
+        if (str.find("/HLS_BNLayer"+to_string(TOTALLAYERS[i]))!=std::string::npos)
+          {
+          // std::string s2(std::find(str.begin(), str.end(), '[')+1,(str.end() - 6));
+          // std::string s3(s2.begin(),std::find(s2.begin(),s2.end(), ','));
+          // std::cout << s3 <<endl;
+          int freq=char_freq(str);
+           //For 1d tensor below 
+           std::string s2(std::find(str.begin(), str.end(), '[')+1,(str.end() - 6));
+           int dim1 = stoi(s2);
+           // File reading
+           const char *filename = str.c_str();
+          std::vector<unsigned char> fileData = readFile(filename);
+          int poke = 0;
+          for(std::vector<unsigned char>::iterator it = fileData.begin(); it != fileData.end(); ++it) {
+              poke++;
+              //std::cout << *it;
+             }
+             cout<<endl;
+           BNw_dim1.push_back(dim1);          
+          
+           }
+        if (str.find("/HLS_BNThreshold"+to_string(TOTALLAYERS[i]))!=std::string::npos)
+        {
+          //For 1d tensor below 
+          std::string s2(std::find(str.begin(), str.end(), '[')+1,(str.end() - 6));
+          int dim1=stoi(s2);
+          BNt_dim1.push_back(dim1);
+          
+        }
+        if ((str.find("/HLS_ConvLayer"+to_string(TOTALLAYERS[i]))!=std::string::npos) ) // && (bnt_flag & bnl_flag == 1))
+         {
+           // For 4-d tensor parser below
+           
+           std::string s2(std::find(str.begin(), str.end(), '[')+1,(str.end() - 6));
+           auto firstcomma = std::find(s2.begin(),s2.end(), ',');
+           auto secondcomma = std::find(firstcomma+1,s2.end(), ',');
+           auto thirdcomma = std::find(secondcomma+1,s2.end(), ',');
+           std::string s1d(s2.begin(),firstcomma);
+           std::string s2d(firstcomma+1,secondcomma);
+           std::string s3d(secondcomma+1,thirdcomma);
+           std::string s4d(thirdcomma+1,s2.end());  
+           int dim1 = stoi(s1d);
+           int dim2 = stoi(s2d);
+           int dim3 = stoi(s3d);
+           int dim4 = stoi(s4d);
+
+           CNw_dim1.push_back(dim1);
+           CNw_dim2.push_back(dim2);
+           CNw_dim3.push_back(dim3);
+           CNw_dim4.push_back(dim4);
+           //////////////////////////////
+           
+         } 
+        
+        } // end of for loop
+
+        }
+  // 
+  // {
+  //   ifstream wtfile(dir+"/HLS_BNLayer"+to_string(TOTALLAYERS[i]+"_Dimension_torch.Size([") )
+  // }
+}
+int main()
+{
+  BinOpener("../HLSgenerated/");
+  return 0;
 }
