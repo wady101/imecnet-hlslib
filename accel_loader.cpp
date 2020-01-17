@@ -305,12 +305,15 @@ void BinOpener(std::string dir)
         //      CN_w| -- |BN_w|BN_t
         int longest = std::max({CN_w.size(),BN_w.size(),BN_t.size()});
         // cout<<(float)longest/64<<endl;
-        int padding = bitsPerExtMemWord+(bitsPerExtMemWord - CN_w.size())%bitsPerExtMemWord;
-        if(padding=64) padding=0;
+
+
+        /// Conv Weight Loader 
+        int padding = bitsPerExtMemWord - (CN_w.size()%bitsPerExtMemWord);
+        if(padding==64) padding=0;
         int missing = CN_w.size()%bitsPerExtMemWord;
         for (int poke = 0; poke <= padding-1; poke++)
         {
-            CN_w.push_back(1); //Initialize 1 for padding to match 64-bits.  
+            CN_w.push_back(0); //Initialize 1 for padding to match 64-bits.  
         }
         for (int ind=0; ind<= CN_w.size()+padding-1; ind+=sizeof(ExtMemWord))
         {
@@ -318,7 +321,7 @@ void BinOpener(std::string dir)
           ExtMemWord CN_w_arr;
           //CN_w_arr = new ExtMemWord;
           for (int j=ind; j<= ind+sizeof(ExtMemWord)-1; j++)
-            CN_w_arr = CN_w_arr << 4 | CN_w[j];
+            CN_w_arr = CN_w_arr << 1 | CN_w[j];
           // printf("%u\n",CN_w_arr);
           // HAvig more AXI ports slows the processor? 
           // Implementaiton of dimensions = {i,CN_dim1,CN_dim2,CN_dim3, CN_dim4};
@@ -326,7 +329,54 @@ void BinOpener(std::string dir)
           // int dimensions = stoi(temp);
           std::string temp = (to_string(CN_dim3)+to_string(CN_dim4));
           int dimensions = stoi(temp);
-          Accel_load(i,CN_dim1,CN_dim2,dimensions, *CN_w_arr);
+          Accel_load(i,CN_dim1,CN_dim2,dimensions, CN_w_arr);
+        }
+
+
+        /// BN Weight Loader
+        padding = bitsPerExtMemWord - (BN_w.size()%bitsPerExtMemWord);
+        if(padding==64) padding=0;
+         for (int poke = 0; poke <= padding-1; poke++)
+        {
+            BN_w.push_back(0); //Initialize 1 for padding to match 64-bits. 
+        }
+        // cout<<(BN_w.size()%bitsPerExtMemWord)<<endl<<BN_w.size()<<endl<<padding<<endl;
+        missing = BN_w.size()%bitsPerExtMemWord;
+        for (int ind=0; ind<= BN_w.size()+padding-1; ind+=sizeof(ExtMemWord))
+        {
+          //unsigned int *CN_w_arr[sizeof(ExtMemWord)-1];
+          ExtMemWord CN_w_arr;
+          //CN_w_arr = new ExtMemWord;
+          for (int j=ind; j<= ind+sizeof(ExtMemWord)-1; j++)
+            CN_w_arr = CN_w_arr << 1 | BN_w[j];
+          int BN_dim2=0;
+          int BN_dim3=0;
+          int BN_dim4=0;
+          std::string temp = (to_string(BN_dim3)+to_string(BN_dim4));
+          int dimensions = stoi(temp);
+          Accel_load(i,BN_dim1,BN_dim2,dimensions, CN_w_arr);
+        }
+        
+        /// BN Threshold Loader
+        padding = bitsPerExtMemWord - (BN_t.size()%bitsPerExtMemWord);
+        if(padding==64) padding=0;
+        {
+            BN_t.push_back(0); //Initialize 1 for padding to match 64-bits. 
+        }
+        missing = BN_t.size()%bitsPerExtMemWord;
+        for (int ind=0; ind<= BN_t.size()+padding-1; ind+=sizeof(ExtMemWord))
+        {
+          //unsigned int *CN_w_arr[sizeof(ExtMemWord)-1];
+          ExtMemWord CN_w_arr;
+          //CN_w_arr = new ExtMemWord;
+          for (int j=ind; j<= ind+sizeof(ExtMemWord)-1; j++)
+            CN_w_arr = CN_w_arr << 1 | BN_t[j];
+          int BN_dim2=0;
+          int BN_dim3=0;
+          int BN_dim4=0;
+          std::string temp = (to_string(BN_dim3)+to_string(BN_dim4));
+          int dimensions = stoi(temp);
+          Accel_load(i,BT_dim1,BN_dim2,dimensions, CN_w_arr);
         }
           
         // cout<<longest<<endl;
