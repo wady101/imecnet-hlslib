@@ -187,6 +187,7 @@ int char_freq (std::string str)
 return count;
 }
 std::vector<unsigned char> readFile(const char* filename)
+// Below snippet of code is for reading files. Can we multi-thread each datastream such that we have 3 threads running co-currently? PYNQ should stall but?
 {
     // open the file:
     std::streampos fileSize;
@@ -199,12 +200,14 @@ std::vector<unsigned char> readFile(const char* filename)
 
     // read the data:
     unsigned char e = 0;
+    std::vector<unsigned char> fileData(fileSize);
+    
     for (unsigned int line = 0; line <= fileSize; line++)
       {file.read((char *)&e, sizeof(unsigned char));
-      unsigned int asfjfalfj = e; 
-      printf("%u",e);}
-    std::vector<unsigned char> fileData(fileSize);
-    file.read((char*) &fileData[0], fileSize);
+      //cout wont work - printf("%u",e);
+      fileData[line]=e;
+    
+      }
     return fileData;
 }
 //ConvLayer_6_Bram_15_Dimension_torch.Size([192, 192, 3, 3]).bin
@@ -219,6 +222,15 @@ void BinOpener(std::string dir)
   std::vector<int> CNw_dim2;
   std::vector<int> CNw_dim3;
   std::vector<int> CNw_dim4;
+  std::vector<unsigned char> CN_w;
+  std::vector<unsigned char> BN_w;
+  std::vector<unsigned char> BN_t;
+  int CN_dim1;
+  int CN_dim2;
+  int CN_dim3;
+  int CN_dim4;
+  int BN_dim1,BT_dim1;
+
 
       for ( int i=0; i<=(sizeof(TOTALLAYERS)/sizeof(*TOTALLAYERS))-1; i++)
         {
@@ -239,25 +251,26 @@ void BinOpener(std::string dir)
           int freq=char_freq(str);
            //For 1d tensor below 
            std::string s2(std::find(str.begin(), str.end(), '[')+1,(str.end() - 6));
-           int dim1 = stoi(s2);
+           int BN_dim1 = stoi(s2);
            // File reading
            const char *filename = str.c_str();
-          std::vector<unsigned char> fileData = readFile(filename);
-          int poke = 0;
-          for(std::vector<unsigned char>::iterator it = fileData.begin(); it != fileData.end(); ++it) {
-              poke++;
-              //std::cout << *it;
-             }
-             cout<<endl;
-           BNw_dim1.push_back(dim1);          
+           BN_w = readFile(filename);
+          // for(std::vector<unsigned char>::iterator it = fileData.begin(); it != fileData.end(); ++it) {
+          //     printf("%u",*it);
+          //    }
+          //    cout<<endl;
+           BNw_dim1.push_back(BN_dim1);          
           
            }
         if (str.find("/HLS_BNThreshold"+to_string(TOTALLAYERS[i]))!=std::string::npos)
         {
           //For 1d tensor below 
           std::string s2(std::find(str.begin(), str.end(), '[')+1,(str.end() - 6));
-          int dim1=stoi(s2);
-          BNt_dim1.push_back(dim1);
+          BT_dim1=stoi(s2);
+          /// REDO FUNCTION FOR FLOATING POINT THRESHOLD - THIS WILL NOT WORK. 
+          const char *filename = str.c_str();
+          BN_t = readFile(filename);
+          BNt_dim1.push_back(BT_dim1);
           
         }
         if ((str.find("/HLS_ConvLayer"+to_string(TOTALLAYERS[i]))!=std::string::npos) ) // && (bnt_flag & bnl_flag == 1))
@@ -272,22 +285,55 @@ void BinOpener(std::string dir)
            std::string s2d(firstcomma+1,secondcomma);
            std::string s3d(secondcomma+1,thirdcomma);
            std::string s4d(thirdcomma+1,s2.end());  
-           int dim1 = stoi(s1d);
-           int dim2 = stoi(s2d);
-           int dim3 = stoi(s3d);
-           int dim4 = stoi(s4d);
+           CN_dim1 = stoi(s1d);
+           CN_dim2 = stoi(s2d);
+           CN_dim3 = stoi(s3d);
+           CN_dim4 = stoi(s4d);
 
-           CNw_dim1.push_back(dim1);
-           CNw_dim2.push_back(dim2);
-           CNw_dim3.push_back(dim3);
-           CNw_dim4.push_back(dim4);
+           const char *filename = str.c_str();
+            CN_w = readFile(filename);
+           CNw_dim1.push_back(CN_dim1);
+           CNw_dim2.push_back(CN_dim2);
+           CNw_dim3.push_back(CN_dim3);
+           CNw_dim4.push_back(CN_dim4);
            //////////////////////////////
            
-         } 
+         }
+        } // End of for loop thru directories
+        // TODO: Support for padding the AXI bus -> 
+        //      MSB | ---x62 | LSB
+        //      CN_w| -- |BN_w|BN_t
+        int longest = std::max({CN_w.size(),BN_w.size(),BN_t.size()});
+        // cout<<(float)longest/64<<endl;
+        int padding = bitsPerExtMemWord+(bitsPerExtMemWord - CN_w.size())%bitsPerExtMemWord;
+        if(padding=64) padding=0;
+        int missing = CN_w.size()%bitsPerExtMemWord;
+        for (int poke = 0; poke <= padding-1; poke++)
+        {
+            CN_w.push_back(1); //Initialize 1 for padding to match 64-bits.  
+        }
+        for (int ind=0; ind<= CN_w.size()+padding-1; ind+=sizeof(ExtMemWord))
+        {
+          //unsigned int *CN_w_arr[sizeof(ExtMemWord)-1];
+          ExtMemWord CN_w_arr;
+          //CN_w_arr = new ExtMemWord;
+          for (int j=ind; j<= ind+sizeof(ExtMemWord)-1; j++)
+            CN_w_arr = CN_w_arr << 4 | CN_w[j];
+          // printf("%u\n",CN_w_arr);
+          // HAvig more AXI ports slows the processor? 
+          // Implementaiton of dimensions = {i,CN_dim1,CN_dim2,CN_dim3, CN_dim4};
+          // std::string temp = (to_string(i)+to_string(CN_dim1)+to_string(CN_dim2)+to_string(CN_dim3)+to_string(CN_dim4));
+          // int dimensions = stoi(temp);
+          std::string temp = (to_string(CN_dim3)+to_string(CN_dim4));
+          int dimensions = stoi(temp);
+          Accel_load(i,CN_dim1,CN_dim2,dimensions, *CN_w_arr);
+        }
+          
+        // cout<<longest<<endl;
+
+          
         
         } // end of for loop
-
-        }
   // 
   // {
   //   ifstream wtfile(dir+"/HLS_BNLayer"+to_string(TOTALLAYERS[i]+"_Dimension_torch.Size([") )
