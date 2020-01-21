@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-std=c++17 -I../HLSgenerated/ -Idrivers/
+CFLAGS=-std=c++17 -I../HLSgenerated/ -Idrivers/ 
 OCFLAGS=-lstdc++fs
 SRC=accel_loader.cpp drivers/platform-xlnk.cpp
 DEF_BOARD="PYNQ"

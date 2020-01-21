@@ -9,6 +9,8 @@
 // Needed direct from FINN
 typedef unsigned long long ExtMemWord; 
 const unsigned int bitsPerExtMemWord = sizeof(ExtMemWord)*8;
+const unsigned int bytesPerExtMemWord = sizeof(ExtMemWord)*2;
+
 #ifndef VIRTUAL
   #define INPUT_BUF_ENTRIES     3840000
   #define OUTPUT_BUF_ENTRIES    160000
