@@ -337,6 +337,38 @@ void BinOpener(std::string dir)
            //////////////////////////////
          }
         } // End of for loop thru directories
+<<<<<<< HEAD
+        // TODO: Support for padding the AXI bus -> 
+        //      MSB | ---x62 | LSB
+        //      CN_w| -- |BN_w|BN_t
+        int longest = std::max({CN_w.size(),BN_w.size(),BN_t.size()});
+        // cout<<(float)longest/64<<endl;
+        int padding = bitsPerExtMemWord+(bitsPerExtMemWord - CN_w.size())%bitsPerExtMemWord;
+        if(padding=64) padding=0;
+        int missing = CN_w.size()%bitsPerExtMemWord;
+        for (int poke = 0; poke <= padding-1; poke++)
+        {
+            CN_w.push_back(1); //Initialize 1 for padding to match 64-bits.  
+        }
+        for (int ind=0; ind<= CN_w.size()+padding-1; ind+=sizeof(ExtMemWord))
+        {
+          //unsigned int *CN_w_arr[sizeof(ExtMemWord)-1];
+          ExtMemWord CN_w_arr;
+          //CN_w_arr = new ExtMemWord;
+          for (int j=ind; j<= ind+sizeof(ExtMemWord)-1; j++)
+            CN_w_arr = CN_w_arr << 4 | CN_w[j];
+          // printf("%u\n",CN_w_arr);
+          // HAvig more AXI ports slows the processor? 
+          // Implementaiton of dimensions = {i,CN_dim1,CN_dim2,CN_dim3, CN_dim4};
+          // std::string temp = (to_string(i)+to_string(CN_dim1)+to_string(CN_dim2)+to_string(CN_dim3)+to_string(CN_dim4));
+          // int dimensions = stoi(temp);
+          std::string temp = (to_string(CN_dim3)+to_string(CN_dim4));
+          int dimensions = stoi(temp);
+          Accel_load(i,CN_dim1,CN_dim2,dimensions, *CN_w_arr);
+        }
+          
+        // cout<<longest<<endl;
+=======
         const char *bn_filename = str_bn.c_str();
         const char *cnv_filename = str_cnv.c_str();
           CN_w = readFile(cnv_filename,targetLayer,dim4,dim3,dim2,dim1,CN_dim4,CN_dim3,CN_dim2,CN_dim1);
@@ -348,6 +380,7 @@ void BinOpener(std::string dir)
           int_readFile(bn_filename,targetLayer,bn_dim4);
           BNt_dim1.push_back(BT_dim1);
           targetLayer++;
+>>>>>>> 0ff2f2a... finished middle sender
 
         } // end of outer for loop
   // 
