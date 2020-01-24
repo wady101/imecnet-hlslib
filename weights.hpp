@@ -5,6 +5,7 @@
 template<unsigned int DIM4,unsigned int DIM3,unsigned int DIM2,unsigned int DIM1>
 class BinaryWeights {
 	ap_uint<DIM1>  weights_m[DIM4][DIM3][DIM2];
+	
 	class TileIndex {
 	BinaryWeights const &m_par;
 	unsigned      const  m_idx;

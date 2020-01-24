@@ -12,170 +12,201 @@
 #include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 using namespace std;
-// std::vector<int> testPrebinarized_nolabel(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
-//   if(labelBits > bitsPerExtMemWord) {
-//     throw "labelBits > bitsPerExtMemWord not yet supported";
-//   }
-//   const unsigned int count = 1;
-//   cout << "Running prebinarized test for " << count << " images..." << endl;
-//   // compute the number of words needed to store the each img and label in binarized form
-//   const unsigned int psi = paddedSize(imgs[0].size(), bitsPerExtMemWord) / bitsPerExtMemWord;
-//   const unsigned int psl = paddedSize(labelBits, bitsPerExtMemWord) / bitsPerExtMemWord;
-//   // allocate buffers for binarized input and output data
-//   ExtMemWord * binImages = new ExtMemWord[(count * psi)];
 
-//   // binarize each image and label
-//   for(unsigned int i = 0; i < count; i++) {
-//     binarizeAndPack(imgs[i], &binImages[i * psi], psi);
-//   }
-//   unsigned int r = 0;
+// return in padded to a multiple of padTo
+unsigned int paddedSize(unsigned int in, unsigned int padTo) {
+  if(in % padTo == 0) {
+    return in;
+  } else {
+    return in + padTo - (in % padTo);
+  }
+}
 
-//   // recognize
-//   unsigned int ok = 0, failed = 0;
-//   ExtMemWord * outLabel = new ExtMemWord[(count * psl)];
-//   TRANSFER_EXCL(thePlatform->copyBufferHostToAccel((void *)binImages, accelBufIn, sizeof(ExtMemWord) * count * psi));
+
+// binarize an array of floating point values according to their sign and
+// pack into a stream of bits
+void binarizeAndPack(const vec_t & in, ExtMemWord * out, unsigned int inBufSize) {
+  if(in.size() / bitsPerExtMemWord > inBufSize) {
+    throw "Not enough space in input buffer";
+  }
+  // first, fill the target buffer with padding data
+  memset(out, FOLDEDMV_INPUT_PADCHAR, inBufSize * sizeof(ExtMemWord));
+  // now clear/set each bit position as needed
+  for(unsigned int i=0; i < in.size(); i++) {
+    if(in[i] >= 0) {
+      // set bit
+      out[i / bitsPerExtMemWord] |= ((ExtMemWord)1 << (i % bitsPerExtMemWord));
+    } else {
+      // clear bit
+      out[i / bitsPerExtMemWord] &= ~((ExtMemWord)1 << (i % bitsPerExtMemWord));
+    }
+  }
+}
+
+std::vector<int> testPrebinarized_nolabel(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
+  if(labelBits > bitsPerExtMemWord) {
+    throw "labelBits > bitsPerExtMemWord not yet supported";
+  }
+  const unsigned int count = 1;
+  cout << "Running prebinarized test for " << count << " images..." << endl;
+  // compute the number of words needed to store the each img and label in binarized form
+  const unsigned int psi = paddedSize(imgs[0].size(), bitsPerExtMemWord) / bitsPerExtMemWord;
+  const unsigned int psl = paddedSize(labelBits, bitsPerExtMemWord) / bitsPerExtMemWord;
+  // allocate buffers for binarized input and output data
+  ExtMemWord * binImages = new ExtMemWord[(count * psi)];
+
+  // binarize each image and label
+  for(unsigned int i = 0; i < count; i++) {
+    binarizeAndPack(imgs[i], &binImages[i * psi], psi);
+  }
+  unsigned int r = 0;
+
+  // recognize
+  unsigned int ok = 0, failed = 0;
+  ExtMemWord * outLabel = new ExtMemWord[(count * psl)];
+  TRANSFER_EXCL(thePlatform->copyBufferHostToAccel((void *)binImages, accelBufIn, sizeof(ExtMemWord) * count * psi));
   
-//   auto t1 = chrono::high_resolution_clock::now();
-//   FoldedMVOffloadBinarized(binImages, outLabel, count * psi, count * psl, count);
-//   auto t2 = chrono::high_resolution_clock::now();
+  auto t1 = chrono::high_resolution_clock::now();
+  FoldedMVOffloadBinarized(binImages, outLabel, count * psi, count * psl, count);
+  auto t2 = chrono::high_resolution_clock::now();
   
-//   TRANSFER_EXCL(thePlatform->copyBufferAccelToHost(accelBufOut, (void *)outLabel, sizeof(ExtMemWord) * count * psl));
-//   // compare against labels
-//   uint64_t mask_output = 0xFFFFFFFFFFFFFFFF;
-//   mask_output = mask_output >> (64 - labelBits);
-//   for(unsigned int i = 0; i < count; i++) {
-//     outLabel[i * psl] = outLabel[i * psl] & mask_output;
-//   }
-//   auto duration = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
-//   usecPerImage = (float)duration / (count);
-//   cout << "Inference took " << duration << " microseconds, " << usecPerImage << " usec per image" << endl;
-//   cout << "Classification rate: " << 1000000.0 / usecPerImage << " images per second" << endl;
-//   std::vector<int> result;
-//   double internal_result;
-//   if (outLabel[0] == 0) {
-//     internal_result = 0;
-//   } else {
-//     internal_result = round(log2((double) outLabel[0]));
-//   }
-//   for (unsigned int i = 0 ; i < 64; i++) {
-//     if (i!=(unsigned int) internal_result) {
-//       result.push_back(0);
-//     } else { 
-//       result.push_back(1);
-//     }
-//   }
-//   delete[] outLabel;
-//   delete[] binImages;
-//   return result;
-// }
+  TRANSFER_EXCL(thePlatform->copyBufferAccelToHost(accelBufOut, (void *)outLabel, sizeof(ExtMemWord) * count * psl));
+  // compare against labels
+  uint64_t mask_output = 0xFFFFFFFFFFFFFFFF;
+  mask_output = mask_output >> (64 - labelBits);
+  for(unsigned int i = 0; i < count; i++) {
+    outLabel[i * psl] = outLabel[i * psl] & mask_output;
+  }
+  auto duration = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
+  usecPerImage = (float)duration / (count);
+  cout << "Inference took " << duration << " microseconds, " << usecPerImage << " usec per image" << endl;
+  cout << "Classification rate: " << 1000000.0 / usecPerImage << " images per second" << endl;
+  std::vector<int> result;
+  double internal_result;
+  if (outLabel[0] == 0) {
+    internal_result = 0;
+  } else {
+    internal_result = round(log2((double) outLabel[0]));
+  }
+  for (unsigned int i = 0 ; i < 64; i++) {
+    if (i!=(unsigned int) internal_result) {
+      result.push_back(0);
+    } else { 
+      result.push_back(1);
+    }
+  }
+  delete[] outLabel;
+  delete[] binImages;
+  return result;
+}
 
-// std::vector<int> testPrebinarized_nolabel_multiple_images(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
-//   // TODO support labelBits > bitsPerExtMemWord
-//   if(labelBits > bitsPerExtMemWord) {
-//     throw "labelBits > bitsPerExtMemWord not yet supported";
-//   }
-//   const unsigned int count = imgs.size();
-//   cout << "Running prebinarized test for " << count << " images..." << endl;
-//   // compute the number of words needed to store the each img and label in binarized form
-//   const unsigned int psi = paddedSize(imgs[0].size(), bitsPerExtMemWord) / bitsPerExtMemWord;
-//   const unsigned int psl = paddedSize(labelBits, bitsPerExtMemWord) / bitsPerExtMemWord;
-//   // allocate buffers for binarized input and output data
-//   ExtMemWord * binImages = new ExtMemWord[(count * psi)];
+std::vector<int> testPrebinarized_nolabel_multiple_images(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
+  // TODO support labelBits > bitsPerExtMemWord
+  if(labelBits > bitsPerExtMemWord) {
+    throw "labelBits > bitsPerExtMemWord not yet supported";
+  }
+  const unsigned int count = imgs.size();
+  cout << "Running prebinarized test for " << count << " images..." << endl;
+  // compute the number of words needed to store the each img and label in binarized form
+  const unsigned int psi = paddedSize(imgs[0].size(), bitsPerExtMemWord) / bitsPerExtMemWord;
+  const unsigned int psl = paddedSize(labelBits, bitsPerExtMemWord) / bitsPerExtMemWord;
+  // allocate buffers for binarized input and output data
+  ExtMemWord * binImages = new ExtMemWord[(count * psi)];
 
-//   // binarize each image and label
-//   for(unsigned int i = 0; i < count; i++) {
-//     binarizeAndPack(imgs[i], &binImages[i * psi], psi);
-//   }
-//   unsigned int r = 0;
+  // binarize each image and label
+  for(unsigned int i = 0; i < count; i++) {
+    binarizeAndPack(imgs[i], &binImages[i * psi], psi);
+  }
+  unsigned int r = 0;
 
-//   // recognize
-//   unsigned int ok = 0, failed = 0;
-//   ExtMemWord * outLabel = new ExtMemWord[(count * psl)];
-//   TRANSFER_EXCL(thePlatform->copyBufferHostToAccel((void *)binImages, accelBufIn, sizeof(ExtMemWord) * count * psi));
+  // recognize
+  unsigned int ok = 0, failed = 0;
+  ExtMemWord * outLabel = new ExtMemWord[(count * psl)];
+  TRANSFER_EXCL(thePlatform->copyBufferHostToAccel((void *)binImages, accelBufIn, sizeof(ExtMemWord) * count * psi));
   
-//   auto t1 = chrono::high_resolution_clock::now();
-//   FoldedMVOffloadBinarized(binImages, outLabel, count * psi, count * psl, count);
-//   auto t2 = chrono::high_resolution_clock::now();
+  auto t1 = chrono::high_resolution_clock::now();
+  FoldedMVOffloadBinarized(binImages, outLabel, count * psi, count * psl, count);
+  auto t2 = chrono::high_resolution_clock::now();
   
-//   TRANSFER_EXCL(thePlatform->copyBufferAccelToHost(accelBufOut, (void *)outLabel, sizeof(ExtMemWord) * count * psl));
-//   // compare against labels
-//   uint64_t mask_output=0xFFFFFFFFFFFFFFFF; // = uint64_t(uint64_t(1<<labelBits)-1);
-//   mask_output = mask_output>> (64-labelBits);
-//   for(unsigned int i = 0; i < count; i++) {
-//     outLabel[i * psl] = outLabel[i * psl] & mask_output;
-//   }
-//   auto duration = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
-//   usecPerImage = (float)duration / (count);
-//   cout << "Inference took " << duration << " microseconds, " << usecPerImage << " usec per image" << endl;
-//   cout << "Classification rate: " << 1000000.0 / usecPerImage << " images per second" << endl;
-//   std::vector<int> result;
-//   double internal_result;
-//   for(unsigned int j = 0; j < count; j++) {
-//     if (outLabel[j] == 0) {
-//       internal_result = 0;
-//     } else {
-//       internal_result = log2((double) outLabel[j]);
-//     }
-//     result.push_back((unsigned int) internal_result);
-//   }
-//   delete[] outLabel;
-//   delete[] binImages;
-//   return result;
-// }
+  TRANSFER_EXCL(thePlatform->copyBufferAccelToHost(accelBufOut, (void *)outLabel, sizeof(ExtMemWord) * count * psl));
+  // compare against labels
+  uint64_t mask_output=0xFFFFFFFFFFFFFFFF; // = uint64_t(uint64_t(1<<labelBits)-1);
+  mask_output = mask_output>> (64-labelBits);
+  for(unsigned int i = 0; i < count; i++) {
+    outLabel[i * psl] = outLabel[i * psl] & mask_output;
+  }
+  auto duration = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
+  usecPerImage = (float)duration / (count);
+  cout << "Inference took " << duration << " microseconds, " << usecPerImage << " usec per image" << endl;
+  cout << "Classification rate: " << 1000000.0 / usecPerImage << " images per second" << endl;
+  std::vector<int> result;
+  double internal_result;
+  for(unsigned int j = 0; j < count; j++) {
+    if (outLabel[j] == 0) {
+      internal_result = 0;
+    } else {
+      internal_result = log2((double) outLabel[j]);
+    }
+    result.push_back((unsigned int) internal_result);
+  }
+  delete[] outLabel;
+  delete[] binImages;
+  return result;
+}
 
 
-// void testPrebinarized(std::vector<vec_t> & imgs, std::vector<label_t> & labels, const unsigned int labelBits) {
-//   // TODO support labelBits > bitsPerExtMemWord
-//   if(labelBits > bitsPerExtMemWord) {
-//     throw "labelBits > bitsPerExtMemWord not yet supported";
-//   }
-//   const unsigned int count = imgs.size();
-//   cout << "Running prebinarized test for " << count << " images..." << endl;
-//   // compute the number of words needed to store the each img and label in binarized form
-//   const unsigned int psi = paddedSize(imgs[0].size(), bitsPerExtMemWord) / bitsPerExtMemWord;
-//   const unsigned int psl = paddedSize(labelBits, bitsPerExtMemWord) / bitsPerExtMemWord;
-//   // allocate buffers for binarized input and output data
-//   ExtMemWord * binImages = new ExtMemWord[(count * psi)];
-//   ExtMemWord * binLabels = new ExtMemWord[(count * psl)];
-//   // binarize each image and label
-//   for(unsigned int i = 0; i < count; i++) {
-//     binarizeAndPack(imgs[i], &binImages[i * psi], psi);
-//     memset(&binLabels[i * psl], 0, sizeof(ExtMemWord) * psl);
-//     binLabels[i * psl] = 1 << labels[i];
-//   }
-//   unsigned int r = 0;
-//   cout << "Enter number of times to repeat test: " << endl;
-//   cin >> r;
-//   // recognize
-//   unsigned int ok = 0, failed = 0;
-//   ExtMemWord * outLabel = new ExtMemWord[(count * psl)];
-//   TRANSFER_EXCL(thePlatform->copyBufferHostToAccel((void *)binImages, accelBufIn, sizeof(ExtMemWord) * count * psi));
-//   auto t1 = chrono::high_resolution_clock::now();
-//   for(unsigned int y = 0; y < r; y++) {
-//     FoldedMVOffloadBinarized(binImages, outLabel, count * psi, count * psl, count);
-//   }
-//   auto t2 = chrono::high_resolution_clock::now();
-//   TRANSFER_EXCL(thePlatform->copyBufferAccelToHost(accelBufOut, (void *)outLabel, sizeof(ExtMemWord) * count * psl));
-//   // compare against labels
-//   uint64_t mask_output = 0xFFFFFFFFFFFFFFFF; // = uint64_t(uint64_t(1<<labelBits)-1);
-//   mask_output = mask_output>> (64-labelBits);
-//   for(unsigned int i = 0; i < count; i++) {
-//     outLabel[i * psl] = outLabel[i * psl] & mask_output;
-//     if(memcmp(&outLabel[i * psl], &binLabels[i * psl], psl * sizeof(ExtMemWord)) == 0) {
-//       ok++;
-//     } else {
-//       failed++;
-//     }
-//   }
-//   cout << "Succeeded " << ok << " failed " << failed << " accuracy " << 100.0*(float)ok / count << "%" << endl;
-//   auto duration = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
-//   float usecPerImage = (float)duration / (count*r);
-//   cout << "Inference took " << duration << " microseconds, " << usecPerImage << " usec per image" << endl;
-//   cout << "Classification rate: " << 1000000.0 / usecPerImage << " images per second" << endl;
-//   delete[] outLabel;
-//   delete[] binImages;
-//   delete[] binLabels;
-// }
+void testPrebinarized(std::vector<vec_t> & imgs, std::vector<label_t> & labels, const unsigned int labelBits) {
+  // TODO support labelBits > bitsPerExtMemWord
+  if(labelBits > bitsPerExtMemWord) {
+    throw "labelBits > bitsPerExtMemWord not yet supported";
+  }
+  const unsigned int count = imgs.size();
+  cout << "Running prebinarized test for " << count << " images..." << endl;
+  // compute the number of words needed to store the each img and label in binarized form
+  const unsigned int psi = paddedSize(imgs[0].size(), bitsPerExtMemWord) / bitsPerExtMemWord;
+  const unsigned int psl = paddedSize(labelBits, bitsPerExtMemWord) / bitsPerExtMemWord;
+  // allocate buffers for binarized input and output data
+  ExtMemWord * binImages = new ExtMemWord[(count * psi)];
+  ExtMemWord * binLabels = new ExtMemWord[(count * psl)];
+  // binarize each image and label
+  for(unsigned int i = 0; i < count; i++) {
+    binarizeAndPack(imgs[i], &binImages[i * psi], psi);
+    memset(&binLabels[i * psl], 0, sizeof(ExtMemWord) * psl);
+    binLabels[i * psl] = 1 << labels[i];
+  }
+  unsigned int r = 0;
+  cout << "Enter number of times to repeat test: " << endl;
+  cin >> r;
+  // recognize
+  unsigned int ok = 0, failed = 0;
+  ExtMemWord * outLabel = new ExtMemWord[(count * psl)];
+  TRANSFER_EXCL(thePlatform->copyBufferHostToAccel((void *)binImages, accelBufIn, sizeof(ExtMemWord) * count * psi));
+  auto t1 = chrono::high_resolution_clock::now();
+  for(unsigned int y = 0; y < r; y++) {
+    FoldedMVOffloadBinarized(binImages, outLabel, count * psi, count * psl, count);
+  }
+  auto t2 = chrono::high_resolution_clock::now();
+  TRANSFER_EXCL(thePlatform->copyBufferAccelToHost(accelBufOut, (void *)outLabel, sizeof(ExtMemWord) * count * psl));
+  // compare against labels
+  uint64_t mask_output = 0xFFFFFFFFFFFFFFFF; // = uint64_t(uint64_t(1<<labelBits)-1);
+  mask_output = mask_output>> (64-labelBits);
+  for(unsigned int i = 0; i < count; i++) {
+    outLabel[i * psl] = outLabel[i * psl] & mask_output;
+    if(memcmp(&outLabel[i * psl], &binLabels[i * psl], psl * sizeof(ExtMemWord)) == 0) {
+      ok++;
+    } else {
+      failed++;
+    }
+  }
+  cout << "Succeeded " << ok << " failed " << failed << " accuracy " << 100.0*(float)ok / count << "%" << endl;
+  auto duration = chrono::duration_cast<chrono::microseconds>(t2 - t1).count();
+  float usecPerImage = (float)duration / (count*r);
+  cout << "Inference took " << duration << " microseconds, " << usecPerImage << " usec per image" << endl;
+  cout << "Classification rate: " << 1000000.0 / usecPerImage << " images per second" << endl;
+  delete[] outLabel;
+  delete[] binImages;
+  delete[] binLabels;
+}
 int char_freq (std::string str)
 { int count = 0;
       for (int i = 0; i < str.size(); i++)
@@ -337,38 +368,6 @@ void BinOpener(std::string dir)
            //////////////////////////////
          }
         } // End of for loop thru directories
-<<<<<<< HEAD
-        // TODO: Support for padding the AXI bus -> 
-        //      MSB | ---x62 | LSB
-        //      CN_w| -- |BN_w|BN_t
-        int longest = std::max({CN_w.size(),BN_w.size(),BN_t.size()});
-        // cout<<(float)longest/64<<endl;
-        int padding = bitsPerExtMemWord+(bitsPerExtMemWord - CN_w.size())%bitsPerExtMemWord;
-        if(padding=64) padding=0;
-        int missing = CN_w.size()%bitsPerExtMemWord;
-        for (int poke = 0; poke <= padding-1; poke++)
-        {
-            CN_w.push_back(1); //Initialize 1 for padding to match 64-bits.  
-        }
-        for (int ind=0; ind<= CN_w.size()+padding-1; ind+=sizeof(ExtMemWord))
-        {
-          //unsigned int *CN_w_arr[sizeof(ExtMemWord)-1];
-          ExtMemWord CN_w_arr;
-          //CN_w_arr = new ExtMemWord;
-          for (int j=ind; j<= ind+sizeof(ExtMemWord)-1; j++)
-            CN_w_arr = CN_w_arr << 4 | CN_w[j];
-          // printf("%u\n",CN_w_arr);
-          // HAvig more AXI ports slows the processor? 
-          // Implementaiton of dimensions = {i,CN_dim1,CN_dim2,CN_dim3, CN_dim4};
-          // std::string temp = (to_string(i)+to_string(CN_dim1)+to_string(CN_dim2)+to_string(CN_dim3)+to_string(CN_dim4));
-          // int dimensions = stoi(temp);
-          std::string temp = (to_string(CN_dim3)+to_string(CN_dim4));
-          int dimensions = stoi(temp);
-          Accel_load(i,CN_dim1,CN_dim2,dimensions, *CN_w_arr);
-        }
-          
-        // cout<<longest<<endl;
-=======
         const char *bn_filename = str_bn.c_str();
         const char *cnv_filename = str_cnv.c_str();
           CN_w = readFile(cnv_filename,targetLayer,dim4,dim3,dim2,dim1,CN_dim4,CN_dim3,CN_dim2,CN_dim1);
@@ -380,7 +379,6 @@ void BinOpener(std::string dir)
           int_readFile(bn_filename,targetLayer,bn_dim4);
           BNt_dim1.push_back(BT_dim1);
           targetLayer++;
->>>>>>> 0ff2f2a... finished middle sender
 
         } // end of outer for loop
   // 
