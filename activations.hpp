@@ -66,7 +66,7 @@ public:
  * the indexed row is smaller than the passed accumulator value.
  */
 template<unsigned DIM1,  
-	 typename TA, int ActVal = 0, typename TR, typename Compare = std::less<TA>>
+	 typename TA, int ActVal = 0, typename TR = ap_int<2>, typename Compare = std::less<TA>>
 class ThresholdsActivation {
 public:
   TA m_thresholds[DIM1];
@@ -78,12 +78,12 @@ public:
   }
 
 public:
-  TR activate( unsigned const  pe,  TA const &accu) const {
+  TR activate( unsigned const  nf,unsigned const  pe,  TA const &accu) const {
 #pragma HLS inline
     TR result=ActVal;
-	for(unsigned int i=0; i< NumTH; i++){
+	for(unsigned int i=0; i< DIM1; i++){
 #pragma HLS unroll
-      result+=Compare()(m_thresholds[pe], accu);
+      result+=Compare()(m_thresholds[i], accu);
     }
     return result;
   }
@@ -146,4 +146,3 @@ void Thresholding_Batch(hls::stream<TI> &in,
     }
   }
 }
-#endif

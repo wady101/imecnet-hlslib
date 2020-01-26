@@ -6,11 +6,15 @@
 #include <weights.hpp>
 #include <docomputer.hpp>
 #include <activations.hpp>
+#include <dma.h>
+#include <streamtools.h>
+#include <utils.hpp>
+#include <maxpool.h>
+#include <mvau.hpp>
 
 using namespace hls;
 using namespace std;
 
-#define CASSERT_DATAFLOW(x) {if (!(x)) {std::cout<< "CASSERT_DATAFLOW condition is not met " << endl; exit(-1);	}}
 
 //static BinaryWeights<BRAM_NUM,BRAM_DEPTH,BRAM_WIDTH> weights0;
 static BinaryWeights<CONVW1_DIM4,CONVW1_DIM3,CONVW1_DIM2,CONVW1_DIM1>  weights0;
@@ -31,56 +35,56 @@ static BinaryWeights<CONVW9_DIM4,CONVW9_DIM3,CONVW9_DIM2,CONVW9_DIM1>  weights6;
 //static ThresholdsActivation<BNB1_DIM6,ap_fixed<8,16>> thres5;
 //static ThresholdsActivation<BNB1_DIM7,ap_fixed<8,16>> thres6;
 
-static ThresholdsActivation<BNB1_DIM1,ap_fixed<12,12>,0,ap_int<2>> thres0;
-static ThresholdsActivation<BNB2_DIM1,ap_fixed<12,12>,0,ap_int<2>> thres1;
-static ThresholdsActivation<BNB4_DIM1,ap_fixed<12,12>,0,ap_int<2>> thres2;
-static ThresholdsActivation<BNB5_DIM1,ap_fixed<12,12>,0,ap_int<2>> thres3;
-static ThresholdsActivation<BNB7_DIM1,ap_fixed<12,12>,0,ap_int<2>> thres4;
-static ThresholdsActivation<BNB8_DIM1,ap_fixed<12,12>,0,ap_int<2>> thres5;
-static ThresholdsActivation<BNB9_DIM1,ap_fixed<12,12>,0,ap_int<1>> thres6;
+static ThresholdsActivation<BNB1_DIM1,ap_fixed<12,12>,0,ap_int<2>,ap_int<2>> thres0;
+static ThresholdsActivation<BNB2_DIM1,ap_fixed<12,12>,0,ap_int<2>,ap_int<2>> thres1;
+static ThresholdsActivation<BNB4_DIM1,ap_fixed<12,12>,0,ap_int<2>,ap_int<2>> thres2;
+static ThresholdsActivation<BNB5_DIM1,ap_fixed<12,12>,0,ap_int<2>,ap_int<2>> thres3;
+static ThresholdsActivation<BNB7_DIM1,ap_fixed<12,12>,0,ap_int<2>,ap_int<2>> thres4;
+static ThresholdsActivation<BNB8_DIM1,ap_fixed<12,12>,0,ap_int<2>,ap_int<2>> thres5;
+static ThresholdsActivation<BNB9_DIM1,ap_fixed<12,12>,0,ap_int<1>,ap_int<2>> thres6;
 
 
-void DoMemInit(unsigned int targetLayer,unsigned int targetdim4,unsigned int targetdim3,unsigned int targetdim2, unsigned int targetdim1, ap_uint<64> val)
+void DoMemInit(unsigned int targetLayer,unsigned int targetdim4,unsigned int targetdim3,unsigned int targetdim2, ap_uint<64> val)
 {
 	switch(targetLayer){
 	case 0:
-			weights0.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights0.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 1:
 			thres0.m_thresholds[targetdim4] = val;
 			break;
 	case 2:
-			weights1.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights1.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 4:
 			thres1.m_thresholds[targetdim4] = val;
 			break;
 	case 5:
-			weights2.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights2.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 6:
 			thres2.m_thresholds[targetdim4] = val;
 			break;
 	case 7:
-			weights3.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights3.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 8:
 			thres3.m_thresholds[targetdim4] = val;
 			break;
 	case 9:
-			weights4.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights4.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 10:
 			thres4.m_thresholds[targetdim4] = val;
 			break;
 	case 11:
-			weights5.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights5.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 12:
 			thres5.m_thresholds[targetdim4] = val;
 			break;
 	case 13:
-			weights6.weights_m[targetdim4][targetdim3][targetdim2][targetdim1] = val;
+			weights6.weights_m[targetdim4][targetdim3][targetdim2] = val;
 			break;
 	case 14:
 			thres6.m_thresholds[targetdim4] = val;
@@ -90,7 +94,7 @@ void DoMemInit(unsigned int targetLayer,unsigned int targetdim4,unsigned int tar
 	}
 
 }
-void doCompute(ap_uint<64> *in, ap_uint<64> *out, ap_uint numReps){ //didn't add numreps 
+void doCompute(ap_uint<64> *in, ap_uint<64> *out, unsigned int numReps){ //didn't add numreps
 #pragma HLS DATAFLOW
   stream<ap_uint<64>> inter0("DoCompute.inter0");
   stream<ap_uint<192>> inter0_1("DoCompute.inter0_1");
@@ -122,17 +126,17 @@ void doCompute(ap_uint<64> *in, ap_uint<64> *out, ap_uint numReps){ //didn't add
   // bufffer fit
   StreamingDataWidthConverter_Batch<64, 192, (32 * 32 * 3 * 8) / 64>(inter0, inter0_1, numReps);
   StreamingDataWidthConverter_Batch<192, 24, (32 * 32 * 3 * 8) / 192>(inter0_1, inter0_2, numReps);
-  ConvLayer_Batch<CONVW1_DIM2, CONVW1_DIM3, 32, CONVW1_DIM4, CONVW1_DIM_IMAGE, SIMD_1, PE_1, Slice<ap_fixed<8, 1, AP_TRN, AP_SAT>>, Slice<ap_int<2>>, Recast<Binary>>(inter0_2, inter1, weights0, threshs0, numReps, ap_resource_lut());
+  ConvLayer_Batch<CONVW1_DIM2, CONVW1_DIM3, 32, CONVW1_DIM4, CONVW1_DIM_IMAGE, SIMD_1, PE_1, Slice<ap_fixed<8, 1, AP_TRN, AP_SAT>>, Slice<ap_int<2>>, Recast<Binary>>(inter0_2, inter1, weights0, thres0, numReps, ap_resource_lut());
   // input , input - CONVW1_DIM2 + 1
- ConvLayer_Batch<CONVW2_DIM2, CONVW2_DIM3, CONVW1_DIM_IMAGE, CONVW2_DIM4, CONVW2_DIM_IMAGE, SIMD_2, PE_2,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter1, inter2, weights1, threshs1, numReps, ap_resource_lut());
+ ConvLayer_Batch<CONVW2_DIM2, CONVW2_DIM3, CONVW1_DIM_IMAGE, CONVW2_DIM4, CONVW2_DIM_IMAGE, SIMD_2, PE_2,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter1, inter2, weights1, thres1, numReps, ap_resource_lut());
  StreamingMaxPool_Precision_Batch<CONVW3_DIM_IMAGE, CONVW3_MAXPOOL_KER, CONVW2_DIM4, ap_int<2>, -1>(inter2, inter3, numReps);
- ConvLayer_Batch<CONVW4_DIM2, CONVW4_DIM3, CONVW4_DIM_IMAGE, CONVW4_DIM4, CONVW4_DIM_IMAGE, SIMD_3, PE_3,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter3, inter4, weights2, threshs2, numReps, ap_resource_lut());
- ConvLayer_Batch<CONVW5_DIM2, CONVW5_DIM3, CONVW5_DIM_IMAGE, CONVW5_DIM4, CONVW5_DIM_IMAGE, SIMD_4, PE_4,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter4, inter5, weights3, threshs3, numReps, ap_resource_lut());
+ ConvLayer_Batch<CONVW4_DIM2, CONVW4_DIM3, CONVW4_DIM_IMAGE, CONVW4_DIM4, CONVW4_DIM_IMAGE, SIMD_3, PE_3,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter3, inter4, weights2, thres2, numReps, ap_resource_lut());
+ ConvLayer_Batch<CONVW5_DIM2, CONVW5_DIM3, CONVW5_DIM_IMAGE, CONVW5_DIM4, CONVW5_DIM_IMAGE, SIMD_4, PE_4,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter4, inter5, weights3, thres3, numReps, ap_resource_lut());
 StreamingMaxPool_Precision_Batch<CONVW6_DIM_IMAGE, CONVW6_MAXPOOL_KER, CONVW5_DIM4, ap_int<2>, -1>(inter5, inter6, numReps);
-ConvLayer_Batch<CONVW7_DIM2, CONVW7_DIM3, CONVW7_DIM_IMAGE, CONVW7_DIM4, CONVW7_DIM_IMAGE, SIMD_5, PE_5,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter6, inter7, weights4, threshs4, numReps, ap_resource_lut());
- ConvLayer_Batch<CONVW8_DIM2, CONVW8_DIM3, CONVW8_DIM_IMAGE, CONVW8_DIM4, CONVW8_DIM_IMAGE, SIMD_6, PE_6,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter7, inter8, weights5, threshs5, numReps, ap_resource_lut());
-ConvLayer_Batch<CONVW9_DIM2, CONVW9_DIM3, CONVW9_DIM_IMAGE, CONVW9_DIM4, CONVW9_DIM_IMAGE, SIMD_7, PE_7,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter8, inter9, weights6, threshs6, numReps, ap_resource_lut());
-StreamingMaxPool_Precision_Batch<CONVW10_DIM_IMAGE, CONVW10_MAXPOOL_KER, CONVW9_DIM4, ap_int<2>, -1>(inter9, static_cast<hls::stream<ap_uint<16 * L8_PE>>&>(wa_out), numReps);
+ConvLayer_Batch<CONVW7_DIM2, CONVW7_DIM3, CONVW7_DIM_IMAGE, CONVW7_DIM4, CONVW7_DIM_IMAGE, SIMD_5, PE_5,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter6, inter7, weights4, thres4, numReps, ap_resource_lut());
+ConvLayer_Batch<CONVW8_DIM2, CONVW8_DIM3, CONVW8_DIM_IMAGE, CONVW8_DIM4, CONVW8_DIM_IMAGE, SIMD_6, PE_6,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter7, inter8, weights5, thres5, numReps, ap_resource_lut());
+ConvLayer_Batch<CONVW9_DIM2, CONVW9_DIM3, CONVW9_DIM_IMAGE, CONVW9_DIM4, CONVW9_DIM_IMAGE, SIMD_7, PE_7,  Slice<ap_int<2> >, Slice<ap_int<2>>, Recast<Binary>>(inter8, inter9, weights6, thres6, numReps, ap_resource_lut());
+StreamingMaxPool_Precision_Batch<CONVW10_DIM_IMAGE, CONVW10_MAXPOOL_KER, CONVW9_DIM4, ap_int<2>, -1>(inter9, static_cast<hls::stream<ap_uint<16 * PE_9>>&>(memOutStrm), numReps);
 
 Stream2Mem_Batch<64, outBits/8>(memOutStrm, out, numReps);
 }
@@ -158,35 +162,35 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS INTERFACE s_axilite port=out bundle=control
 
 // partition PE arrays
-#pragma HLS ARRAY_PARTITION variable=weights0.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights0.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs0.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs0.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights1.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights1.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs1.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs1.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights2.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights2.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs2.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs2.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights3.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights3.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs3.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs3.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights4.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights4.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs4.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs4.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights5.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights5.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs5.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs5.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights6.m_weights complete dim=1
+#pragma HLS ARRAY_PARTITION variable=weights6.weights_m complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs6.m_thresholds complete dim=1
 #pragma HLS ARRAY_PARTITION variable=threshs6.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights7.m_weights complete dim=1
-#pragma HLS ARRAY_PARTITION variable=threshs7.m_thresholds complete dim=1
-#pragma HLS ARRAY_PARTITION variable=threshs7.m_thresholds complete dim=3
-#pragma HLS ARRAY_PARTITION variable=weights8.m_weights complete dim=1
+//#pragma HLS ARRAY_PARTITION variable=weights7.weights_m complete dim=1
+//#pragma HLS ARRAY_PARTITION variable=threshs7.m_thresholds complete dim=1
+//#pragma HLS ARRAY_PARTITION variable=threshs7.m_thresholds complete dim=3
+//#pragma HLS ARRAY_PARTITION variable=weights8.weights_m complete dim=1
 
   if (doInit) {
-    DoMemInit(targetLayer, targetdim4, targetdim3, targetdim2, val);//didn't add numreps 
+    DoMemInit(targetLayer, targetdim4, targetdim3, targetdim2 , val);//didn't add numreps
   } else {
-    DoCompute(in, out, numReps);
+    doCompute(in, out, numReps);
   }
 }
