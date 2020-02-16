@@ -188,7 +188,7 @@ struct Caster<ap_fixed<W, I, Q, O, N>> {
   }
 }; 
 
-template<typename T, unsigned STRIDE=T::width>
+template<typename T, unsigned STRIDE=sizeof(T)> //Page 534 ug902 
 class Slice {
  public:
   static unsigned const  width = STRIDE;

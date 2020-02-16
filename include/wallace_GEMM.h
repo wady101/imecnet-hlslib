@@ -1,3 +1,7 @@
+#include <ap_int.h>
+#include <hls_stream.h>
+using namespace hls;
+
 #define MAX(x, y) (((x) > (y)) ? (x) : (y)) /* \brief Maximum value between x and y*/
 #define MIN(x, y) (((x) > (y)) ? (y) : (x)) /* !< \brief Minimum value between x and y*/
 
@@ -21,21 +25,22 @@
  */
 template<unsigned int ConvKernelDim, 
 		 unsigned int IFMChannels,
-		//  unsigned int Input_precision,		
+		 unsigned int Input_precision,		
 		 unsigned int IFMDim, 
 		 unsigned int OFMDim,
 		 unsigned int SIMD,
 		 unsigned int Stride = 1>  
-void ConvolutionInputGenerator(
-		stream<ap_uint<SIMD> > & in,
-		stream<ap_uint<SIMD> > & out,
+void GEMM(
+		stream<ap_uint<SIMD*Input_precision> > & in,
+		stream<ap_uint<SIMD*Input_precision> > & out,
 		const unsigned int numReps = 1) {
+    // DEBUG std::cout<<"Input to the sw" << in.read() <<std::endl;
         const unsigned int multiplying_factor = IFMChannels/SIMD;
-  const unsigned int number_blocks = OFDim ;
+  const unsigned int number_blocks = OFMDim ;
   // rows*col
   // ap_uint<SIMD> I[IFMDim][IFMDim * multiplying_factor];
   // ap_uint<SIMD> W[IFMDim][ConvKernelDim * multiplying_factor];
-  ap_uint<SIMD> L[OFMDim][IFMDim * ConvKernelDim * multiplying_factor];
+  ap_uint<SIMD*Input_precision> inputBuf[OFMDim][IFMDim * ConvKernelDim * multiplying_factor];
 
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=1
 //#pragma HLS RESOURCE variable inputBuf core=RAM_2P_LUTRAM
@@ -56,9 +61,9 @@ void ConvolutionInputGenerator(
     for (unsigned int i = 0; i < baseIter; i++) {
 #pragma HLS PIPELINE II=1
       if (inp < IFMDim * ConvKernelDim*multiplying_factor) {// Initial buffer of ConvKernelDim lines	
-        ap_uint<SIMD> inElem;
+        ap_uint<SIMD*Input_precision> inElem;
         inElem = in.read();
-        L[current_block_write][current_line] = inElem;
+        inputBuf[current_block_write][current_line] = inElem;
         current_line++;
         inp++;
         if (current_line == IFMDim * ConvKernelDim * multiplying_factor ) {
@@ -72,16 +77,20 @@ void ConvolutionInputGenerator(
         }
       } else {
         if (counter_internal_block < cycles_write_block-1) { // We are writing output, MMV IFMChan per cycle
-          unsigned int current_block_read = (current_block_write + 1 + k_y / Stride);
+          // unsigned int current_block_read = (current_block_write + 1 + k_y / Stride);
+          unsigned int current_block_read = (current_block_write + ofm_x / Stride);
           if (current_block_read >= number_blocks) {
             current_block_read-= number_blocks;
-		  }
-          unsigned int current_line_in_block = ((k_y%Stride) * IFMDim + ofm_x*Stride + k_x)*multiplying_factor + count_simd;
-          ap_uint<SIMD> outElem = inputBuf[current_block_read][(current_line_in_block)];
+		                                    }
+          // unsigned int current_line_in_block = ((k_y%Stride) * IFMDim + ofm_x*Stride + k_x)*multiplying_factor + count_simd;
+          unsigned int current_line_in_block = (Stride * ConvKernelDim * ofm_x + k_y * Stride * ConvKernelDim + k_x)* multiplying_factor + count_simd ; 
+          ap_uint<SIMD*Input_precision> outElem = inputBuf[current_block_read][(current_line_in_block)];
+  
+				// DEBUG printf("Interior outElem  %s \n", outElem.to_string().c_str());
           out.write(outElem);
           count_simd++;
           if (count_simd == multiplying_factor) { //LSB
-            count_simd=0;					
+            count_simd=0;					 
             k_x++;
             if (k_x == ConvKernelDim) {
               k_x = 0;
@@ -89,7 +98,7 @@ void ConvolutionInputGenerator(
               if (k_y == ConvKernelDim) {
                 k_y = 0;
                 ofm_x ++;
-                if (ofm_y == OFMDim) { //MSB
+                if (ofm_x == OFMDim) { //MSB
                   ofm_x = 0;
                   inp = 0;
                 }
@@ -98,11 +107,11 @@ void ConvolutionInputGenerator(
           }
         }
         if ((counter_internal_block < cycles_read_block-1) && (read_block<IFMDim/Stride)) { // In parallel we write in the buffer, in the current block write if we still need to
-          ap_uint<SIMD> inElem;
+          ap_uint<SIMD*Input_precision> inElem;
           inElem = in.read();
-           I[current_block_write][current_line] = inElem;
-#pragma AP dependence variable=I intra false
-#pragma AP dependence variable=I inter false
+           inputBuf[current_block_write][current_line] = inElem;
+#pragma AP dependence variable=inputBuf intra false
+#pragma AP dependence variable=inputBuf inter false
           current_line++;
           if (current_line == IFMDim *ConvKernelDim *  multiplying_factor) {// We read the whole block, we change the next block in which we want to we
             // We filled up a block, let's not read until

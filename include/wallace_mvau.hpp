@@ -48,13 +48,99 @@
  *
  *******************************************************************************/
 
-#ifndef MVAU_HPP
-#define MVAU_HPP
 
 #include "hls_stream.h"
 
-#include "mac.hpp"
 #include "interpret.hpp"
+#include "utils.hpp"
+
+
+/**
+ * \brief      Multipliy operation between 2 operands, HLS choose the best resource
+ * 
+ * The same multiply operation can be implemented using multiple Vivado HLS pragmas to select the 
+ * hardware resource to be used:
+ * ap_resource_dflt will let HLS choose the best one
+ * ap_resource_lut will force HLS to implement the multiplier in LUTs
+ * ap_resource_dsp will force HLS to implement the multiplier in DSP48
+ *
+ * \tparam     TC    First operand datatype (weights)
+ * 
+ * \tparam     TD    Second operand datatype (input)
+ * 
+ * \param      c     First operand (array of weights)
+ * \param      d     Second operand (array of input activation)
+ * \param      r     Resource type for the hardware implementation of the MAC block
+ *
+ * \return     Result of the multiply operation
+ */
+template<typename TC, typename TD>
+auto mul(TC const &c, TD const &d, ap_resource_dflt const&) -> decltype(c*d) {
+#pragma HLS inline
+  auto  r = c*d;
+  return  r;
+}
+
+/**
+ * \brief      Multiply operation between 2 operands, implemented in LUT
+ * 
+ * The same multiply operation can be implemented using multiple Vivado HLS pragmas to select the 
+ * hardware resource to be used:
+ * ap_resource_dflt will let HLS choose the best one
+ * ap_resource_lut will force HLS to implement the multiplier in LUTs
+ * ap_resource_dsp will force HLS to implement the multiplier in DSP48
+ *
+ * \tparam     TC    First operand datatype (weights)
+ * \tparam     TD    Second operand datatype (input)
+ * 
+ * \param      c     First operand (array of weights)
+ * \param      d     Second operand (array of input activation)
+ * \param      r     Resource type for the hardware implementation of the MAC block
+ *
+ * \return     Result of the multiply operation
+ */
+template<typename TC, typename TD>
+auto mul(TC const &c, TD const &d) -> decltype(c*d) {
+#pragma HLS inline
+  decltype(c*d) const  res = c*d;
+#pragma HLS RESOURCE variable=res core=Mul_LUT
+  return  res;
+}
+
+
+
+
+/**
+ * \brief      MAC with selectable implementation resource, used by Matrix_Vector_Activate_Batch
+ *
+ * \tparam     N     Number of MAC to be performed (equals to SIMD in mvau)
+ * \tparam     T     Accumulator datatype
+ * \tparam     TC    First operand datatype (weights)
+ * \tparam     TD    Second operand datatype (input)
+ * \tparam     R     Datatype for the resource used for FPGA implementation of the MAC  - safely deducible from the paramaters
+ * 
+ * \param      a     Initialization value of the accumulation
+ * \param      c     First operand (array of weights)
+ * \param      d     Second operand (array of input activation)
+ * \param      r     Resource type for the hardware implementation of the MAC block
+ *
+ * \return     Result of the MAC operation
+ */
+template<unsigned N, typename T, typename TC, typename TD>
+T mac(T const &a, TC const &c, TD const &d) {
+#pragma HLS inline
+  T  res = a;
+  for(unsigned  i = 0; i < N; i++) { //SIMD length going in
+#pragma HLS unroll
+    res += mul(c[i], d[i]);
+  }
+  return  res;
+}
+// template<unsigned N, typename T, typename TC, typename TD>
+// inline T mac(T const &a, TC const &c, TD const &d) {
+// #pragma HLS inline
+//   return  mac<N>(a, c, d, ap_resource_dflt());
+// }
 
 /**
  * \brief Matrix vector activate function
@@ -85,16 +171,15 @@
  * \param r           Resource type for the hardware implementation of the MAC block
  */
 template<
-  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE, unsigned MMV, 
-  typename TSrcI = Identity, typename TDstI = Identity, typename TWeightI = Identity,
-  typename TI, typename TO, typename TW, typename TA, typename R
+  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE,
+  typename TI, typename TO, typename TW, typename TA
 >
-void Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
+void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 				  hls::stream<TO> &out,
 				  TW  const &weights,
 				  TA  const &activation,
-				  int const  reps,
-				  R const &r) {
+				  int const  reps
+          ) {
 
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks
@@ -108,8 +193,8 @@ void Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
   TI  inputBuf[SF];
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
 
-
-  decltype(activation.init(0,0))  accu[MMV][PE];
+  // decltype(activation.init(0,0))  accu[MMV][PE];
+  ap_uint<2> accu[PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
 
   unsigned  nf   = 0;
@@ -136,35 +221,28 @@ void Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
     // Threshold Initialisation
     if(sf == 0) {
       for(unsigned  pe = 0; pe < PE; pe++) {
-        for(unsigned mmv = 0; mmv < MMV; mmv++) {
 #pragma HLS UNROLL
-          accu[mmv][pe] = activation.init(nf, pe);
-        }
+          accu[pe] = 0;
       }
     }
 
     // compute matrix-vector product for each processing element
-    auto const &w = weights.weights(tile);
+    auto const &w = weights[tile];
     for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-      auto const  wgt = TWeightI()(w[pe]);
-      for (unsigned mmv = 0; mmv < MMV; mmv++){
-        auto const  act = TSrcI()(inElem, mmv);
-        accu[mmv][pe] = mac<SIMD>(accu[mmv][pe], wgt, act, r, mmv);
-      }
+        accu[pe] = mac<SIMD>(accu[pe], w[pe], inElem);
     }
 
     // keep track of which folded synapse/neuron we are processing
     ++tile;
     if(++sf == SF) {
       // produce output and clear accumulators
-      auto  outElem = TDstI().template operator()<TO>();
+      // auto  outElem = TDstI().template operator()<TO>();
+      TO outElem;
       for (unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-        for (unsigned mmv = 0; mmv < MMV; mmv++){
-#pragma HLS UNROLL
-          outElem(pe,mmv,1) = activation.activate(nf, pe, accu[mmv][pe]);
-        }
+          outElem(pe,1) = activation[pe] >= accu[pe]? 1:0; 
+          // outElem(pe,1) = activation.activate(nf, pe, accu[pe]);
       }
 
       out.write(outElem);
@@ -177,4 +255,3 @@ void Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
     }
   }
 }
-#endif

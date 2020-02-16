@@ -51,6 +51,8 @@
 #include <iostream>
 #include <fstream>
 #include <cstddef>
+#include <ap_int.h>
+#include <hls_stream.h>
 
 //- Static Evaluation of ceil(log2(x)) ---------------------------------------
 template<size_t N> struct clog2 {

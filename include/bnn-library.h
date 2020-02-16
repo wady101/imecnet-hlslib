@@ -57,7 +57,9 @@ using namespace std;
 #include "mmv.hpp"			   
 #include "streamtools.h"
 #include "dma.h"
-#include "slidingwindow.h"
+// #include "slidingwindow.h"
 #include "maxpool.h"
-#include "fclayer.h"
-#include "convlayer.h"
+// #include "fclayer.h"
+// #include "convlayer.h"
+
+

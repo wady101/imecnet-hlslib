@@ -40,8 +40,9 @@
  #
 ###############################################################################
 # ignore the first 2 args, since Vivado HLS also passes -f tclname as args
+set systemTime [clock seconds]
 
-set config_proj_name "HLS"
+set config_proj_name "BlackBoxJam_[clock format $systemTime -format %H_%M_%S]"
 puts "HLS project: $config_proj_name"
 set config_hwsrcdir "." 
 puts "HW source dir: $config_hwsrcdir"

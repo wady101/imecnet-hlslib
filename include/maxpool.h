@@ -45,7 +45,6 @@
 
 #ifndef MAXPOOL_H
 #define MAXPOOL_H
- 
 #include <limits>
  
 /**
