@@ -33,7 +33,7 @@ template<unsigned int ConvKernelDim,
 void MEC(
 		stream<ap_uint<SIMD*Input_precision> > & in,
 		stream<ap_uint<SIMD*Input_precision> > & out,
-		const unsigned int numReps = 1) {
+		const unsigned int numReps ) {
   const unsigned int multiplying_factor = IFMChannels/SIMD;
   const unsigned int number_blocks = ConvKernelDim/Stride + 1 ;
   ap_uint<SIMD*Input_precision> inputBuf[number_blocks][Stride * IFMDim * multiplying_factor];
@@ -64,6 +64,7 @@ void MEC(
         if (current_line == Stride * IFMDim * multiplying_factor ) { // complete x-axis of I
           current_line = 0;
           current_block_write++;
+          std::cout<<"DEBUG = "<<count_image<< " Block_write_1 " << current_block_write<<std::endl;
           if (current_block_write == number_blocks) { //complete y-axis of I till kernel dim
             current_block_write=0;
           }
@@ -73,11 +74,13 @@ void MEC(
       } else {
         if (counter_internal_block < cycles_write_block-1) { // We are writing output, MMV IFMChan per cycle
           unsigned int current_block_read = (current_block_write + 1 + k_y / Stride);
+          std::cout<<"DEBUG = "<<count_image<< " before" << k_y<<std::endl;
           if (current_block_read >= number_blocks) {
             current_block_read-= number_blocks;
 		  }
           unsigned int current_line_in_block = (oo_x*Stride + o_x)*multiplying_factor + count_simd;
           ap_uint<SIMD*Input_precision> outElem = inputBuf[current_block_read][(current_line_in_block)];
+          std::cout<<"DEBUG = "<<count_image<< " " << current_block_read<<std::endl;
           out.write(outElem);
           count_simd++;
           if (count_simd == multiplying_factor) {
@@ -89,11 +92,17 @@ void MEC(
               if (oo_x == ConvKernelDim) {
                 oo_x = 0;
                 k_y ++; //y axis down
+              if (k_y == ConvKernelDim) {
+                k_y = 0;
+                inp = 0;
+                ofm_y ++; //y axis down
+              }
+              
               }
             }
           }
         }
-        if ((counter_internal_block < cycles_read_block-1) && (read_block<IFMDim/Stride)) { // In parallel we write in the buffer, in the current block write if we still need to
+        if ((counter_internal_block < cycles_read_block-1) && (read_block<(IFMDim- ConvKernelDim)/Stride )) { // In parallel we write in the buffer, in the current block write if we still need to
           ap_uint<SIMD*Input_precision> inElem;
           inElem = in.read();
           inputBuf[current_block_write][current_line] = inElem;
@@ -105,6 +114,8 @@ void MEC(
             current_line = 0;
             read_block++;
             current_block_write++;
+            std::cout<<"DEBUG = "<<count_image<< " Block_write " << current_block_write<<std::endl;
+          
             if (current_block_write == number_blocks) {
               current_block_write=0;
 			}
@@ -112,12 +123,13 @@ void MEC(
           }
         }
         counter_internal_block++; // = (counter_internal_block +1) % max_cycles;
-        if (counter_internal_block == (max_cycles-1)) {
+        if (counter_internal_block == (max_cycles-1)) { 
           counter_internal_block = 0;
         }
       }
     } // End base_iter
 	read_block = 0;
+  // inp = 0; // Pipeline will stall becauze of this
   } // End count_image
 } // End generator
 
@@ -126,3 +138,4 @@ void MEC(
 //  In line https://github.com/Xilinx/finn-hlslib/blob/8b7f5f5dcd4e3dd17eddc41253040931af28179a/slidingwindow.h#L107 Why can't we only use the below if-else  block for reading ? 
 
 // https://github.com/Xilinx/finn-hlslib/blob/8b7f5f5dcd4e3dd17eddc41253040931af28179a/slidingwindow.h#L153 
+// Authors/Fellow members a real quick question here again.  Why are there 2 read blocks writing to *inputBuf* buffer in https://github.com/Xilinx/finn-hlslib/blob/master/slidingwindow.h ? I do understand the *inp* variable read block is used to 'kick-start' the writing to the buffer *inputBuf* (so that , but then why is there another concurrent read_block writing to *inputBuf*? For reference blocks - **Block1--** https://github.com/Xilinx/finn-hlslib/blob/d657d4dd36e19e488eeead67ee67c7b8acd33369/slidingwindow.h#L107 and  **Block2--** https://github.com/Xilinx/finn-hlslib/blob/d657d4dd36e19e488eeead67ee67c7b8acd33369/slidingwindow.h#L153 
