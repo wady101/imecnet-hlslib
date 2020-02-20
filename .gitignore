@@ -1,15 +1,17 @@
- .vscode/
- BNN-PYNQ-vivadorun/
- a.out
- backup_vivado_hls.log
- present_withSIMDPE/
- present_withSIMDPE/HLS/
- present_withSIMDPE/accel_loader.cpp
- present_withSIMDPE/bitstream_gen/
- present_withSIMDPE/oh-my-xilinx/
- present_withSIMDPE/verilator/
- vivado_hls.log
- include/*.out
- tb/hls-syn-conv/
- tb/*.out
- tb/*.log
+.vscode/
+BNN-PYNQ-vivadorun/
+a.out
+backup_vivado_hls.log
+present_withSIMDPE/
+old_noSIMDPE/
+finn-hlslib/
+present_withSIMDPE/HLS/
+present_withSIMDPE/accel_loader.cpp
+present_withSIMDPE/bitstream_gen/
+present_withSIMDPE/oh-my-xilinx/
+present_withSIMDPE/verilator/
+vivado_hls.log
+include/*.out
+tb/hls-syn-conv/
+tb/*.out
+tb/*.log
