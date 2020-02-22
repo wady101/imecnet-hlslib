@@ -3,7 +3,7 @@
 
 #include "streamtools.h"
 
-#include "wallace_GEMM.h"
+#include "wallace_MEC.h"
 #include "wallace_mvau.hpp"
 
 template<
@@ -15,26 +15,32 @@ template<
 		
 		unsigned int SIMD, 				// number of SIMD lanes
 		unsigned int PE,				// number of PEs
+		unsigned int WMEM,
+		unsigned int TMEM,
 		typename TW, typename TA ,
 		int InStreamW, int OutStreamW  // safely deducible (stream width must be int though!)
 		
 >
 void ConvLayer_Wallace(hls::stream<ap_uint<InStreamW>>  &in,
 			    hls::stream<ap_uint<OutStreamW>> &out,
-			    TW const &weights,
-			    TA const &activation,
+			    TW  weights[][WMEM],
+			    TA  activation[][TMEM],
 			    unsigned const   reps
 				){
 	#pragma HLS INLINE OFF
-    unsigned const MatrixW = IFMDim * IFMChannels;
+    unsigned const MatrixW = ConvKernelDim* ConvKernelDim * IFMChannels;
     unsigned const MatrixH = OFMChannels;
-    unsigned const InpPerImage = IFMDim*ConvKernelDim*IFMChannels/InStreamW; //Not sure about the division
+    unsigned const InpPerImage = ConvKernelDim* IFMDim*IFMDim*IFMChannels/InStreamW; //Dimension of entire image * Kernel because of repepting of conv window
+	
    WidthAdjustedInputStream <InStreamW, SIMD, InpPerImage>  wa_in (in,  reps);
    WidthAdjustedOutputStream <PE, OutStreamW, OFMDim * OFMDim * (OFMChannels / PE)>  mvOut (out,  reps);
    hls::stream<ap_uint<SIMD>> convInp("StreamingConvLayer_Batch.convInp");
-   GEMM<ConvKernelDim, IFMChannels, 1, IFMDim,
+   MEC<ConvKernelDim, IFMChannels, 1, IFMDim,
 			OFMDim, SIMD,1>(wa_in, convInp, reps);
-	Wallace_Matrix_Vector_Activate_Batch<MatrixW, MatrixH, SIMD, PE>(static_cast<hls::stream<ap_uint<SIMD>>&>(convInp),
+	std::cout<<"GEMM performed" << std::endl;
+	Wallace_Matrix_Vector_Activate_Batch<MatrixW, MatrixH, SIMD, PE, WMEM, TMEM>(static_cast<hls::stream<ap_uint<SIMD>>&>(convInp),
      static_cast<hls::stream<ap_uint<PE>>&>  (mvOut),
      weights, activation, reps* OFMDim * OFMDim);
+	 std::cout<<"MVAU performed" << std::endl;
                 }
+	

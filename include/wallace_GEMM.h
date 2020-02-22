@@ -46,7 +46,7 @@ void GEMM(
 //#pragma HLS RESOURCE variable inputBuf core=RAM_2P_LUTRAM
 #pragma HLS RESOURCE variable inputBuf core=RAM_2P_BRAM
   const unsigned int cycles_write_block = (OFMDim * ConvKernelDim * IFMDim * multiplying_factor);
-  const unsigned int cycles_read_block = Stride * IFMDim * multiplying_factor;
+  const unsigned int cycles_read_block = Stride * (IFMDim-ConvKernelDim) * multiplying_factor;
   const unsigned int max_cycles = MAX(cycles_write_block,cycles_read_block);
   const unsigned int baseIter = IFMDim * ConvKernelDim * multiplying_factor// Initial buffer
 			                  + OFMDim * MAX(cycles_write_block,cycles_read_block);
@@ -106,7 +106,7 @@ void GEMM(
             }
           }
         }
-        if ((counter_internal_block < cycles_read_block-1) && (read_block<IFMDim/Stride)) { // In parallel we write in the buffer, in the current block write if we still need to
+        if ((counter_internal_block < cycles_read_block-1) && (read_block<(IFMDim-ConvKernelDim)/Stride)) { // In parallel we write in the buffer, in the current block write if we still need to
           ap_uint<SIMD*Input_precision> inElem;
           inElem = in.read();
            inputBuf[current_block_write][current_line] = inElem;

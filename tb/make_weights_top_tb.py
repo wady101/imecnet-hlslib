@@ -36,8 +36,8 @@ outFileConfig.write("#define IFMDim1 %d \n" % ifm_dimension)
 outFileConfig.write("#define OFMDim1 %d \n" % ofm_dimension)
 outFileConfig.write("#define STRIDE1 %d \n" % stride)
 outFileConfig.write("#define INPUT_PRECISION %d \n" % input_precision)
-outFileConfig.write("#define TILE1 %d \n" % tile)
-
+outFileConfig.write("#define WMEM1 %d \n" % tile)
+outFileConfig.write("#define TMEM1 %d \n"% (ofm_channels//pe))
 outFileConfig.write("#define ACTIVATION_PRECISION %d \n" % activation_precision)
 
 outFileConfig.write("#ifndef PARAMS_HPP\n")
@@ -68,7 +68,7 @@ outFileConfig.write("{")
 for i in range(pe):
 	outFileConfig.write("{")
 	for j in range(ofm_channels//pe):
-		val = 1
+		val = random.randint(0, 10)
 		outFileConfig.write("%d" %val)
 		if j!=ofm_channels/pe-1:
 				outFileConfig.write(",")

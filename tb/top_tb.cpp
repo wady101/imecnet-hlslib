@@ -50,6 +50,7 @@ int main()
 					counter++;
 				}
 				input_stream.write(input_channel);
+
 			}
 		}
 	}

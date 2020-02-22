@@ -50,7 +50,8 @@
 
 
 #include "hls_stream.h"
-
+#include <iostream> 
+using namespace std;
 #include "interpret.hpp"
 #include "utils.hpp"
 
@@ -126,13 +127,16 @@ auto mul(TC const &c, TD const &d) -> decltype(c*d) {
  *
  * \return     Result of the MAC operation
  */
-template<unsigned N, typename T, typename TC, typename TD>
+template<unsigned N, typename T, typename TC, typename TD, unsigned PE>
 T mac(T const &a, TC const &c, TD const &d) {
 #pragma HLS inline
   T  res = a;
   for(unsigned  i = 0; i < N; i++) { //SIMD length going in
 #pragma HLS unroll
-    res += mul(c[i], d[i]);
+  for(unsigned pe=0; pe< PE; pe++) {
+#pragma HLS unroll
+    res[pe] += mul(c[pe][i], d[pe][i]);
+  }
   }
   return  res;
 }
@@ -171,26 +175,27 @@ T mac(T const &a, TC const &c, TD const &d) {
  * \param r           Resource type for the hardware implementation of the MAC block
  */
 template<
-  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE,
+  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE, unsigned WMEM, unsigned TMEM,
   typename TI, typename TO, typename TW, typename TA
 >
 void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 				  hls::stream<TO> &out,
-				  TW  const &weights,
-				  TA  const &activation,
+				  TW  const weights[][WMEM],
+				  TA  const activation[][TMEM],
 				  int const  reps
           ) {
 
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks
-  unsigned const  NF = MatrixH / PE;
+  unsigned const  NF = MatrixH / PE; // TMEM
 
   // how many synapse groups each row is split into
   // alternatively: number of horizontal matrix chunks
-  unsigned const  SF = MatrixW / SIMD;
+  unsigned const  SF = MatrixW / SIMD; 
 
   // input vector buffers
   TI  inputBuf[SF];
+  cout<<"SF "<<SF<<endl;
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
 
   // decltype(activation.init(0,0))  accu[MMV][PE];
@@ -200,6 +205,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
   unsigned  nf   = 0;
   unsigned  sf   = 0;
   unsigned  tile = 0; // invariant: tile = nf*SF + sf
+  unsigned tmem = 0;
 
   // everything merged into a common iteration space (one "big" loop instead
   // of smaller nested loops) to get the pipelinening the way we want
@@ -217,7 +223,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
       // reuse buffered input
       inElem = inputBuf[sf];
     }
-
+    // DEBUG printf("inElem  %s \n", inElem.to_string().c_str());
     // Threshold Initialisation
     if(sf == 0) {
       for(unsigned  pe = 0; pe < PE; pe++) {
@@ -227,23 +233,27 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
     }
 
     // compute matrix-vector product for each processing element
-    auto const &w = weights[tile];
-    for(unsigned  pe = 0; pe < PE; pe++) {
-#pragma HLS UNROLL
-        accu[pe] = mac<SIMD>(accu[pe], w[pe], inElem);
-    }
+   // for(unsigned  pe = 0; pe < PE; pe++) {
+//#pragma HLS UNROLL
+      // auto &w = weights[tile];
+        accu = mac<SIMD>(accu, weights[tile], inElem);
+        // DEBUG cout<<"accu["<<pe<<"] is "<<accu[pe]<<endl;
+  //  }
+    
 
     // keep track of which folded synapse/neuron we are processing
     ++tile;
     if(++sf == SF) {
       // produce output and clear accumulators
-      // auto  outElem = TDstI().template operator()<TO>();
+      // auto  outElem = Identity().template operator()<TO>();
       TO outElem;
       for (unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-          outElem(pe,1) = activation[pe] >= accu[pe]? 1:0; 
+          // outElem(pe,1) = activation[pe][nf] > accu[pe]? 1:0;
+          outElem= (activation[pe][nf] > accu[pe]) << pe;
           // outElem(pe,1) = activation.activate(nf, pe, accu[pe]);
       }
+      printf("outELem  %s \n", outElem.to_string().c_str());
 
       out.write(outElem);
       // next folded neuron or image
@@ -251,6 +261,9 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
       if(++nf == NF) {
 	    nf   = 0;
 	    tile = 0;
+      }
+      if(++tmem == TMEM) {
+        tmem = 0;
       }
     }
   }

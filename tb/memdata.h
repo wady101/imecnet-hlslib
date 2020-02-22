@@ -9,10 +9,11 @@
 #define OFMDim1 6 
 #define STRIDE1 1 
 #define INPUT_PRECISION 4 
-#define TILE1 9 
+#define WMEM1 9 
+#define TMEM1 1 
 #define ACTIVATION_PRECISION 8 
 #ifndef PARAMS_HPP
 #define PARAMS_HPP
-static ap_uint<1> m_weights [1][9] = {{0b1 ,0b0 ,0b1 ,0b1 ,0b0 ,0b0 ,0b0 ,0b1 ,0b0 } }; 
+static ap_uint<1> m_weights [1][9] = {{0b1 ,0b1 ,0b0 ,0b1 ,0b0 ,0b1 ,0b1 ,0b1 ,0b0 } }; 
 static ap_uint<8> threshs [1][1] = {{1} }; 
 #endif 

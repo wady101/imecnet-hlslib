@@ -58,6 +58,7 @@ void MEC(
       if (inp < IFMDim * ConvKernelDim*multiplying_factor) {// Initial buffer of ConvKernelDim lines	
         ap_uint<SIMD*Input_precision> inElem;
         inElem = in.read();
+        printf("DEBUG Input is  %s \n", inElem.to_string().c_str());
         inputBuf[current_block_write][current_line] = inElem; //buffer size is row=IFMDim col=ConvKernelDim/Stride
         current_line++;
         inp++;

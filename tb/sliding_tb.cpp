@@ -37,6 +37,7 @@ stream<ap_uint<IFM_Channels*INPUT_PRECISION> > output_stream("output_stream");
 			}
 		}
 	}
+	// while(!input_stream.empty()) // check for input_stream stalling
     MEC<KERNEL_DIM, IFM_Channels,INPUT_PRECISION, IFMDim, OFMDim, SIMD>(input_stream, output_stream, MAX_IMAGES);
 	unsigned int of_y=0;
 	for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
