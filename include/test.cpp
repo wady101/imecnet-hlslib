@@ -1,8 +1,10 @@
 #include"interpret.hpp"
 #include<iostream>
+#include<hls_stream.h>
 #include<typeinfo>
 
 using namespace std;
+using namespace hls;
 
 // Identity is used as an interpreter command to be compatible with acitvations (finn)
 template <typename poke = Identity,typename dest = Identity>
@@ -48,13 +50,31 @@ void process_2d_array_template(int array[][cols])
     }
 }
 
+template <typename TDstI = Identity>
+void streammasking(){
+ap_uint<2> a[]={1,2,3,4,5,6,7,8,9,1};
+auto  Stream = Identity().template operator()<hls::stream<ap_uint<10>> >();
+for (unsigned i = 0; i<10; i++){ 
+    Stream(i) = a[i];
+}
+printf("Stream  %s \n", Stream);
+
+
+
+}
+
 int main(){
-//print();
-// extractor();
-int a[2][3] = { {1,2,3},{4,5,6} };
-int b[1] = {1};
-  // process_2d_array_template(a);
-  process_2d_array_template<2,3>(a);
+//First test:    
+    //print();
+//Second test:
+    // extractor();
+// Third test:
+    // int a[2][3] = { {1,2,3},{4,5,6} };
+    // int b[1] = {1};
+    // // process_2d_array_template(a);
+    // process_2d_array_template<2,3>(a);
+// Fourth test:
+streammasking();
 
 return 0;
 }

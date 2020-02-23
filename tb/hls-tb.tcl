@@ -1,4 +1,4 @@
-open_project hls-syn-conv
+open_project hls-tb-conv
 set config_proj_part "xc7z020clg400-3" 
 add_files input_top_tb.cpp -cflags "-std=c++0x -I../include/"
 add_files -tb top_tb.cpp -cflags  "-std=c++0x -I../include/"
