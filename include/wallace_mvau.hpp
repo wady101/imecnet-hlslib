@@ -166,7 +166,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 
   // input vector buffers
   TI  inputBuf[SF];
-  cout<<"SF "<<NF<<endl;
+  cout<<"SF "<<SF<<endl;
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
 
   // decltype(activation.init(0,0))  accu[MMV][PE];
@@ -194,7 +194,6 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
       // reuse buffered input
       inElem = inputBuf[sf];
     }
-    printf("inElem  %s \n", inElem.to_string().c_str());
     // Threshold Initialisation
     if(sf == 0) {
       for(unsigned of=0; of<Outer; of++){
@@ -212,7 +211,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
     for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
         accu[of][pe] = mac<SIMD>(accu[of][pe], weights[pe][tile], inElem);
-        printf("accu  %s \n", accu[of][pe].to_string().c_str());
+        // printf("accu  %s \n", accu[of][pe].to_string().c_str());
 
     }
     }
@@ -232,16 +231,18 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
           // outElem(of*PE+pe,of*PE) = accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
           CASSERT_DATAFLOW(SIMD>=PE)
           // outElem(of*SIMD+pe,of*SIMD) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
-          outElem(of*(pe+1),0) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
+          
+          //This has to return a single bit value, else outElem is only going to take single-bit input. 
+          outElem(pe,0) =  activation[pe][tmem] >= accu[of][pe]? 1:0; 
 
 
           // outElem(pe,1) = accu[pe];
           
           // outElem(pe,1) = activation.activate(nf, pe, accu[pe]);
       }
-      }
-       printf("outELem  %s \n", outElem.to_string().c_str());
+      //  printf("outELem  %s \n", outElem.to_string().c_str());
       out.write(outElem);
+      }
       // next folded neuron or image
       sf = 0;
       if(++nf == NF) {
