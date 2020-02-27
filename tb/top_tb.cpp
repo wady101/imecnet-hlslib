@@ -31,10 +31,11 @@ void Testbench_conv(stream<ap_uint<IFM_Channels1*INPUT_PRECISION> > & in, stream
 
 int main()
 {
+	unsigned const Outer = 1;
   static	ap_uint<INPUT_PRECISION> IMAGE[MAX_IMAGES][IFMDim1*IFMDim1][IFM_Channels1];
 	static	ap_int<ACTIVATION_PRECISION> TEST[MAX_IMAGES][OFMDim1][OFMDim1][OFM_Channels1];
 	stream<ap_uint<IFM_Channels1*INPUT_PRECISION> > input_stream("input_stream");
-	stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > output_stream("output_stream");
+	stream<ap_uint<Outer*OFM_Channels1*ACTIVATION_PRECISION> > output_stream("output_stream");
   unsigned int counter = 0;
   for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
 		for (unsigned int oy = 0; oy < IFMDim1; oy++) {
@@ -102,7 +103,7 @@ int main()
 	for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
 		for (unsigned int oy = 0; oy < OFMDim1; oy++) {
 			for (unsigned int ox = 0; ox < OFMDim1; ox++) {
-					ap_uint<OFM_Channels1*ACTIVATION_PRECISION> outElem = output_stream.read();
+					ap_uint<Outer*OFM_Channels1*ACTIVATION_PRECISION> outElem = output_stream.read();
 					for(unsigned int channel = 0; channel < OFM_Channels1; channel++){
 						ap_int<ACTIVATION_PRECISION> EXP = TEST[n_image][ox][oy][channel + OFM_Channels1];
 						out_chan(ACTIVATION_PRECISION-1,0) = outElem((channel + 1)*ACTIVATION_PRECISION-1,channel*ACTIVATION_PRECISION);

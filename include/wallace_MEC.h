@@ -58,14 +58,14 @@ void MEC(
       if (inp < IFMDim * ConvKernelDim*multiplying_factor) {// Initial buffer of ConvKernelDim lines	
         ap_uint<SIMD*Input_precision> inElem;
         inElem = in.read();
-        printf("DEBUG Input is  %s \n", inElem.to_string().c_str());
+        // printf("DEBUG Input is  %s \n", inElem.to_string().c_str());
         inputBuf[current_block_write][current_line] = inElem; //buffer size is row=IFMDim col=ConvKernelDim/Stride
         current_line++;
         inp++;
         if (current_line == Stride * IFMDim * multiplying_factor ) { // complete x-axis of I
           current_line = 0;
           current_block_write++;
-          std::cout<<"DEBUG = "<<count_image<< " Block_write_1 " << current_block_write<<std::endl;
+          // std::cout<<"DEBUG = "<<count_image<< " Block_write_1 " << current_block_write<<std::endl;
           if (current_block_write == number_blocks) { //complete y-axis of I till kernel dim
             current_block_write=0;
           }
@@ -75,13 +75,13 @@ void MEC(
       } else {
         if (counter_internal_block < cycles_write_block-1) { // We are writing output, MMV IFMChan per cycle
           unsigned int current_block_read = (current_block_write + 1 + k_y / Stride);
-          std::cout<<"DEBUG = "<<count_image<< " before" << k_y<<std::endl;
+          // std::cout<<"DEBUG = "<<count_image<< " before" << k_y<<std::endl;
           if (current_block_read >= number_blocks) {
             current_block_read-= number_blocks;
 		  }
           unsigned int current_line_in_block = (oo_x*Stride + o_x)*multiplying_factor + count_simd;
           ap_uint<SIMD*Input_precision> outElem = inputBuf[current_block_read][(current_line_in_block)];
-          std::cout<<"DEBUG = "<<count_image<< " " << current_block_read<<std::endl;
+          // std::cout<<"DEBUG = "<<count_image<< " " << current_block_read<<std::endl;
           out.write(outElem);
           count_simd++;
           if (count_simd == multiplying_factor) {
@@ -115,7 +115,7 @@ void MEC(
             current_line = 0;
             read_block++;
             current_block_write++;
-            std::cout<<"DEBUG = "<<count_image<< " Block_write " << current_block_write<<std::endl;
+            // std::cout<<"DEBUG = "<<count_image<< " Block_write " << current_block_write<<std::endl;
           
             if (current_block_write == number_blocks) {
               current_block_write=0;

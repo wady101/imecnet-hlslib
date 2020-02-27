@@ -143,9 +143,11 @@ T mac(T const &a, TC const &c, TD const &d) {
 //   return  mac<N>(a, c, d, ap_resource_dflt());
 // }
 
+
 template<
   unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE, unsigned WMEM, unsigned TMEM,
-  unsigned OFMDim, typename TI, typename TO, typename TW, typename TA
+   unsigned Outer,
+  typename TI, typename TO, typename TW, typename TA, typename Compare = std::less<TA>
 >
 void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 				  hls::stream<TO> &out,
@@ -156,21 +158,20 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks
-  unsigned const  NF = MatrixH / PE; // TMEM
+  unsigned const  NF = MatrixH / PE;
 
   // how many synapse groups each row is split into
   // alternatively: number of horizontal matrix chunks
-  unsigned const  SF = MatrixW / SIMD; 
+  unsigned const  SF = MatrixW / SIMD;
 
   // input vector buffers
   TI  inputBuf[SF];
-  cout<<"SF "<<SF<<endl;
+  cout<<"SF "<<NF<<endl;
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
 
   // decltype(activation.init(0,0))  accu[MMV][PE];
-  ap_uint<2> accu[OFMDim][PE];
+  ap_uint<SIMD*Outer> accu[Outer][PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
-#pragma HLS ARRAY_PARTITION variable=accu complete dim=1
 
   unsigned  nf   = 0;
   unsigned  sf   = 0;
@@ -193,29 +194,28 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
       // reuse buffered input
       inElem = inputBuf[sf];
     }
-    // DEBUG printf("inElem  %s \n", inElem.to_string().c_str());
+    printf("inElem  %s \n", inElem.to_string().c_str());
     // Threshold Initialisation
     if(sf == 0) {
-      for(unsigned ofm=0; ofm<OFMDim; ofm++) {
-#pragma HLS UNROLL
+      for(unsigned of=0; of<Outer; of++){
+        #pragma HLS UNROLL
       for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-          accu[ofm][pe] = 0;
-        }
+          accu[of][pe] = 0;
+      }
       }
     }
 
     // compute matrix-vector product for each processing element
-   for(unsigned ofm=0; ofm<OFMDim; ofm++) {
+    for(unsigned of=0;of<Outer; of++) {
+      #pragma HLS UNROLL
+    for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-    for(unsigned  pe = 0; pe < PE; pe++){
-    #pragma HLS UNROLL
+        accu[of][pe] = mac<SIMD>(accu[of][pe], weights[pe][tile], inElem);
+        printf("accu  %s \n", accu[of][pe].to_string().c_str());
 
-      // auto &w = weights[tile];
-        accu[ofm][pe] = mac<SIMD>(accu[ofm][pe], weights[pe][tile], inElem);
-        // DEBUG cout<<"accu["<<pe<<"] is "<<accu[pe]<<endl;
     }
-   }
+    }
     
 
     // keep track of which folded synapse/neuron we are processing
@@ -224,18 +224,23 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
       // produce output and clear accumulators
       // auto  outElem = Identity().template operator()<TO>();
       TO outElem;
-      for (unsigned ofm=0; ofm<OFMDim; ofm++){
+      for (unsigned of=0; of<Outer; of++) {
+        #pragma HLS UNROLL
       for (unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-          // outElem(pe,1) = activation[pe][nf] > accu[pe]? 1:0;
-          // outElem= ((activation[pe][nf] > accu[ofm][pe]) << pe)<<ofm;
-        cout<<"accu["<<ofm<<"] is "<<accu[ofm][pe]<<endl;
-          outElem =  (outElem << ofm) + accu[ofm][pe] ;
+          // outElem(pe,0) = Compare()(activation[pe][nf], accu[pe]) << pe;
+          // outElem(of*PE+pe,of*PE) = accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
+          CASSERT_DATAFLOW(SIMD>=PE)
+          // outElem(of*SIMD+pe,of*SIMD) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
+          outElem(of*(pe+1),0) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
+
+
+          // outElem(pe,1) = accu[pe];
+          
           // outElem(pe,1) = activation.activate(nf, pe, accu[pe]);
       }
       }
-      printf("outElem  %s \n", outElem.to_string().c_str());
-
+       printf("outELem  %s \n", outElem.to_string().c_str());
       out.write(outElem);
       // next folded neuron or image
       sf = 0;
@@ -249,3 +254,4 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
     }
   }
 }
+//Sorry to bother you guys more, but I have another (stupid) question. In https://github.com/Xilinx/finn-hlslib/blob/2c95a9df8f682f500c92c44b2124d9175a8e5cfc/mvau.hpp#L168 . What exactly is happening to outElem? Like I understand the activation bit, but what is the purpose of Identity() here? From what I understand, we can now access each element of hls::stream outElem right? 

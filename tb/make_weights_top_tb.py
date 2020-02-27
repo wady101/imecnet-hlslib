@@ -15,7 +15,7 @@ ofm_channels = 1
 ifm_dimension = 8
 ofm_dimension = 6
 
-activation_precision = 8
+activation_precision = 1
 expand = 1
 simd = 1
 pe = 1
