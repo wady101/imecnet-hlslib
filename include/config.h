@@ -2,23 +2,23 @@
 // Config.h generated from parser_gen.py
 
 #define L0_K 5
-#define L0_WMEM 150
-#define L0_TMEM 1
+#define L0_WMEM 144
+#define L0_TMEM 48
 #define L0_SIMD 32
 #define L0_PE 4
-#define L0_MH 4
+#define L0_MH 192
 #define L1_K 1
 #define L1_WMEM 144
-#define L1_TMEM 12
+#define L1_TMEM 6
 #define L1_SIMD 8
 #define L1_PE 16
-#define L1_MH 192
+#define L1_MH 96
 #define L3_K 5
 #define L3_WMEM 900
-#define L3_TMEM 6
+#define L3_TMEM 12
 #define L3_SIMD 32
 #define L3_PE 16
-#define L3_MH 96
+#define L3_MH 192
 #define L4_K 1
 #define L4_WMEM 144
 #define L4_TMEM 12
@@ -38,11 +38,11 @@
 #define L7_PE 16
 #define L7_MH 192
 #define L8_K 1
-#define L8_WMEM 120
-#define L8_TMEM 12
+#define L8_WMEM 192
+#define L8_TMEM 1
 #define L8_SIMD 1
 #define L8_PE 16
-#define L8_MH 192
+#define L8_MH 16
 #define BRAMWIDTH 36
 #define BRAMNUM 0
 #define BRAMDEPTH 504

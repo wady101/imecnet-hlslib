@@ -2,9 +2,10 @@
 using namespace hls; 
 #include "ap_int.h"
 // #include "config_tb.hpp"
-#include "memdata.h"
+
 
 #include "bnn-library.h"
+#include "memdata.h"
 #include "wallace_convlayer.h"
 
 void Testbench_conv(stream<ap_uint<IFM_Channels1*INPUT_PRECISION> > & in, stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > & out, unsigned int numReps){

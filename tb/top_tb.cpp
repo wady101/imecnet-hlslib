@@ -105,9 +105,10 @@ int main()
 			for (unsigned int ox = 0; ox < OFMDim1; ox++) {
 					ap_uint<Outer*OFM_Channels1*ACTIVATION_PRECISION> outElem = output_stream.read();
 					for(unsigned int channel = 0; channel < OFM_Channels1; channel++){
-						ap_int<ACTIVATION_PRECISION> EXP = TEST[n_image][ox][oy][channel + OFM_Channels1];
+						ap_int<ACTIVATION_PRECISION> EXP = TEST[n_image][ox][oy][channel];
 
 						out_chan(ACTIVATION_PRECISION-1,0) = outElem((channel + 1)*ACTIVATION_PRECISION-1,channel*ACTIVATION_PRECISION);
+						// printf("outELem  %s \n", outElem((channel + 1)*ACTIVATION_PRECISION-1,channel*ACTIVATION_PRECISION).to_string().c_str());
 
 						if (EXP != out_chan){
 							std::cout << "ERROR: Expected["<<oy <<"]["<<ox<<"]["<<channel<<"]=" << EXP << " actual " <<  out_chan << std::endl;
@@ -115,8 +116,8 @@ int main()
 							err_counter ++;
 							err_perimage++;
 							// ERROR: Expected[5][5][0]=0 actual -1 Very vague error, put counter 
-							if(err_counter>19)
-								return 1;
+							// if(err_counter>19)
+							// 	return 1;
 						}
 				}
 			}
@@ -129,10 +130,10 @@ int main()
 			std::cout << "Image # " << n_image << " failed the testing."<< std::endl;
 		}
 	}
-	//if(err_counter == 0){
+	if(err_counter == 0){
 		return 0;
-	// }
-	// else{
-		// return 1;
-	// }
+	}
+	else{
+		return 1;
+	}
 }

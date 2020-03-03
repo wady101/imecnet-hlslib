@@ -43,7 +43,7 @@ void MEC(
   const unsigned int cycles_write_block = (OFMDim * ConvKernelDim * ConvKernelDim * multiplying_factor);
   const unsigned int cycles_read_block = Stride * IFMDim * multiplying_factor;
   const unsigned int max_cycles = MAX(cycles_write_block,cycles_read_block);
-  const unsigned int baseIter = IFMDim * ConvKernelDim * multiplying_factor// Initial buffer
+  const unsigned int baseIter = IFMDim*IFMDim * ConvKernelDim * multiplying_factor// Initial buffer
 			                  + OFMDim * MAX(cycles_write_block,cycles_read_block);
   unsigned int counter_internal_block = 0;
   unsigned int current_block_write = 0;
@@ -58,7 +58,7 @@ void MEC(
       if (inp < IFMDim * ConvKernelDim*multiplying_factor) {// Initial buffer of ConvKernelDim lines	
         ap_uint<SIMD*Input_precision> inElem;
         inElem = in.read();
-        // printf("DEBUG Input is  %s \n", inElem.to_string().c_str());
+        printf("DEBUG Input is  %s \n", inElem.to_string().c_str());
         inputBuf[current_block_write][current_line] = inElem; //buffer size is row=IFMDim col=ConvKernelDim/Stride
         current_line++;
         inp++;
@@ -83,6 +83,10 @@ void MEC(
           ap_uint<SIMD*Input_precision> outElem = inputBuf[current_block_read][(current_line_in_block)];
           // std::cout<<"DEBUG = "<<count_image<< " " << current_block_read<<std::endl;
           out.write(outElem);
+          printf("outELem  %s \n", outElem.to_string().c_str());
+        
+          
+
           count_simd++;
           if (count_simd == multiplying_factor) {
             count_simd=0;					
@@ -103,26 +107,32 @@ void MEC(
             }
           }
         }
-        if ((counter_internal_block < cycles_read_block-1) && (read_block<(IFMDim- ConvKernelDim)/Stride )) { // In parallel we write in the buffer, in the current block write if we still need to
-          ap_uint<SIMD*Input_precision> inElem;
-          inElem = in.read();
-          inputBuf[current_block_write][current_line] = inElem;
-#pragma AP dependence variable=inputBuf intra false
-#pragma AP dependence variable=inputBuf inter false
-          current_line++;
-          if (current_line == Stride * IFMDim * multiplying_factor) {// We read the whole block, we change the next block in which we want to we
-            // We filled up a block, let's not read until
-            current_line = 0;
-            read_block++;
-            current_block_write++;
-            // std::cout<<"DEBUG = "<<count_image<< " Block_write " << current_block_write<<std::endl;
+    // Commented this entire if block -> because I am missing an entire write cycle when I am using this i.e. outELem is printed out thrice for Input1 to be inputted thrice and Input2 once. If u r using this block change baseItr 
+    //line to = IFMDim * ConvKernelDim * multiplying_factor// Initial buffer 
+    // + rest of max_cycles
+//         if ((counter_internal_block < cycles_read_block-1) && (read_block<(IFMDim- ConvKernelDim)/Stride )) { // In parallel we write in the buffer, in the current block write if we still need to
+//           ap_uint<SIMD*Input_precision> inElem;
+//           inElem = in.read();
+//           inputBuf[current_block_write][current_line] = inElem;
+//            printf("DEBUG Input2 is  %s \n", inElem.to_string().c_str());
+       
+// #pragma AP dependence variable=inputBuf intra false
+// #pragma AP dependence variable=inputBuf inter false
+//           current_line++;
+//          // inp++;
+//           if (current_line == Stride * IFMDim * multiplying_factor) {// We read the whole block, we change the next block in which we want to we
+//             // We filled up a block, let's not read until
+//             current_line = 0;
+//             read_block++;
+//             current_block_write++;
+//             // std::cout<<"DEBUG = "<<count_image<< " Block_write " << current_block_write<<std::endl;
           
-            if (current_block_write == number_blocks) {
-              current_block_write=0;
-			}
-#pragma AP dependence variable=current_block_write intra false	
-          }
-        }
+//             if (current_block_write == number_blocks) {
+//               current_block_write=0;
+//               #pragma AP dependence variable=current_block_write intra false	
+// 			}
+//           }
+//         }
         counter_internal_block++; // = (counter_internal_block +1) % max_cycles;
         if (counter_internal_block == (max_cycles-1)) { 
           counter_internal_block = 0;

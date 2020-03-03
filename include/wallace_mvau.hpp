@@ -170,7 +170,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
 
   // decltype(activation.init(0,0))  accu[MMV][PE];
-  ap_uint<SIMD*Outer> accu[Outer][PE];
+  ap_uint<SIMD*2> accu[Outer][PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
 
   unsigned  nf   = 0;
@@ -183,6 +183,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
   unsigned const TOTAL_FOLD = NF * SF;
   for(unsigned  i = 0; i < reps * TOTAL_FOLD; i++) {
 #pragma HLS PIPELINE II=1
+for (unsigned of = 0; of<Outer; of++){
     TI  inElem;
     if(nf == 0) {
       // read input from stream
@@ -194,30 +195,29 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
       // reuse buffered input
       inElem = inputBuf[sf];
     }
-    // Threshold Initialisation
+    // Initialisation for accu[of][pe]
     if(sf == 0) {
-      for(unsigned of=0; of<Outer; of++){
-        #pragma HLS UNROLL
+     // for(unsigned of=0; of<Outer; of++){ 
+    //    #pragma HLS UNROLL
       for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
           accu[of][pe] = 0;
       }
-      }
+    //  }
     }
 
     // compute matrix-vector product for each processing element
-    for(unsigned of=0;of<Outer; of++) {
-      #pragma HLS UNROLL
+    //for(unsigned of=0;of<Outer; of++) {  // This is just keeping accu const to same value for Outer iterations as inElem is not updating . also ineffeicient
+      //#pragma HLS UNROLL
     for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
         accu[of][pe] = mac<SIMD>(accu[of][pe], weights[pe][tile], inElem);
-        // printf("accu  %s \n", accu[of][pe].to_string().c_str());
+        printf("input %s weights %s accu  %s \n", inElem.to_string().c_str(),weights[pe][tile].to_string().c_str(),accu[of][pe].to_string().c_str());
 
     }
-    }
-    
-
-    // keep track of which folded synapse/neuron we are processing
+    //}
+  } // EOL
+  // keep track of which line we are processing. tile indicates next line for weights
     ++tile;
     if(++sf == SF) {
       // produce output and clear accumulators
@@ -233,7 +233,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
           // outElem(of*SIMD+pe,of*SIMD) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
           
           //This has to return a single bit value, else outElem is only going to take single-bit input. 
-          outElem(pe,0) =  activation[pe][tmem] >= accu[of][pe]? 1:0; 
+          outElem(pe,0) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
 
 
           // outElem(pe,1) = accu[pe];

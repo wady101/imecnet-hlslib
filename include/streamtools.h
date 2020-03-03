@@ -274,6 +274,7 @@ void StreamingDataWidthConverter_Batch(hls::stream<ap_uint<InWidth> > & in,
       // pick output word from the rightmost position
       ap_uint<OutWidth> eo = ei(OutWidth - 1, 0);
       out.write(eo);
+       //DEBUG printf("Debugging StreamDataWidth  %s \n", eo.to_string().c_str());
       // shift input to get new output word for next iteration
       ei = ei >> OutWidth;
       // increment written output count
@@ -719,7 +720,7 @@ template<unsigned IW, unsigned OW, unsigned N>
   WidthAdjustedInputStream(hls::stream<ap_uint<IW> >&  source, unsigned const  reps) {
     StreamingDataWidthConverter_Batch<IW, OW, N>(source, m_target, reps);
   }
-  ~WidthAdjustedInputStream() {}
+   ~WidthAdjustedInputStream() {}
 
  public:
   operator hls::stream<ap_uint<OW> >&() {

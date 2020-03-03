@@ -170,19 +170,19 @@ void DoCompute(ap_uint<64> *in, ap_uint<64> *out, const unsigned int numReps) {
   // StreamingDataWidthConverter_Batch<192, L0_SIMD, (32 * 32 * 3 * 8) / 192>(inter0_1, inter0_2, numReps);
 
   // convolutional layers
-  ConvLayer_Wallace<L0_K, L0_IFM_CH, L0_IFM_DIM, L0_OFM_CH, L0_OFM_DIM, L0_SIMD, L0_PE, ap_uint<L0_SIMD> [L0_PE][L0_SIMD], ap_uint<8> [L0_PE][1]>(inter0_2, inter1, m_weights0, threshs0, numReps);
-  ConvLayer_Wallace<L1_K, L1_IFM_CH, L1_IFM_DIM, L1_OFM_CH, L1_OFM_DIM, L1_SIMD, L1_PE, ap_uint<L1_SIMD> [L1_PE][L1_SIMD], ap_uint<8> [L1_PE][12] >(inter1, inter2, m_weights1, threshs1, numReps);
+  ConvLayer_Wallace<L0_K, L0_IFM_CH, L0_IFM_DIM, L0_OFM_CH, L0_OFM_DIM, L0_SIMD, L0_PE, L0_WMEM,L0_TMEM, ap_uint<L0_SIMD> , ap_uint<8>>(inter0_2, inter1, m_weights0, threshs0, numReps);
+  ConvLayer_Wallace<L1_K, L1_IFM_CH, L1_IFM_DIM, L1_OFM_CH, L1_OFM_DIM, L1_SIMD, L1_PE, L1_WMEM,L1_TMEM, ap_uint<L1_SIMD> , ap_uint<8>  >(inter1, inter2, m_weights1, threshs1, numReps);
 	
   StreamingMaxPool_Precision_Batch<L1_OFM_DIM, L2_K, L1_OFM_CH, ap_uint<32>, -1>(inter2, inter3, numReps);
 	
-  ConvLayer_Wallace<L3_K, L3_IFM_CH, L3_IFM_DIM, L3_OFM_CH, L3_OFM_DIM, L3_SIMD, L3_PE, ap_uint<L3_SIMD> [L3_PE][L3_SIMD], ap_uint<8> [L3_PE][6] >(inter3, inter4, m_weights3, threshs3, numReps);
-  ConvLayer_Wallace<L4_K, L4_IFM_CH, L4_IFM_DIM, L4_OFM_CH, L4_OFM_DIM, L4_SIMD, L4_PE, ap_uint<L4_SIMD> [L4_PE][L4_SIMD], ap_uint<8> [L4_PE][12] >(inter4, inter5, m_weights4, threshs4, numReps);
+  ConvLayer_Wallace<L3_K, L3_IFM_CH, L3_IFM_DIM, L3_OFM_CH, L3_OFM_DIM, L3_SIMD, L3_PE, L3_WMEM,L3_TMEM, ap_uint<L3_SIMD> , ap_uint<8>  >(inter3, inter4, m_weights3, threshs3, numReps);
+  ConvLayer_Wallace<L4_K, L4_IFM_CH, L4_IFM_DIM, L4_OFM_CH, L4_OFM_DIM, L4_SIMD, L4_PE, L4_WMEM,L4_TMEM, ap_uint<L4_SIMD> , ap_uint<8>  >(inter4, inter5, m_weights4, threshs4, numReps);
 
   StreamingMaxPool_Precision_Batch<L4_OFM_DIM, L5_K, L4_OFM_CH, ap_uint<32>, -1>(inter5, inter6, numReps);
 
-  ConvLayer_Wallace<L6_K, L6_IFM_CH, L6_IFM_DIM, L6_OFM_CH, L6_OFM_DIM, L6_SIMD, L6_PE, ap_uint<L6_SIMD> [L6_PE][L6_SIMD], ap_uint<8> [L6_PE][12]>(inter6, inter7, m_weights6, threshs6, numReps);
-  ConvLayer_Wallace<L7_K, L7_IFM_CH, L7_IFM_DIM, L7_OFM_CH, L7_OFM_DIM, L7_SIMD, L7_PE, ap_uint<L7_SIMD> [L7_PE][L7_SIMD], ap_uint<8> [L7_PE][12]>(inter7, inter8, m_weights7, threshs7, numReps);
-  ConvLayer_Wallace<L8_K, L8_IFM_CH, L8_IFM_DIM, L8_OFM_CH, L8_OFM_DIM, L8_SIMD, L8_PE, ap_uint<L8_SIMD> [L8_PE][L8_SIMD], ap_uint<8> [L8_PE][12]>(inter8, inter9, m_weights8, threshs8, numReps);
+  ConvLayer_Wallace<L6_K, L6_IFM_CH, L6_IFM_DIM, L6_OFM_CH, L6_OFM_DIM, L6_SIMD, L6_PE, L6_WMEM,L6_TMEM, ap_uint<L6_SIMD> , ap_uint<8> >(inter6, inter7, m_weights6, threshs6, numReps);
+  ConvLayer_Wallace<L7_K, L7_IFM_CH, L7_IFM_DIM, L7_OFM_CH, L7_OFM_DIM, L7_SIMD, L7_PE, L7_WMEM,L7_TMEM, ap_uint<L7_SIMD> , ap_uint<8> >(inter7, inter8, m_weights7, threshs7, numReps);
+  ConvLayer_Wallace<L8_K, L8_IFM_CH, L8_IFM_DIM, L8_OFM_CH, L8_OFM_DIM, L8_SIMD, L8_PE, L8_WMEM,L8_TMEM, ap_uint<L8_SIMD> , ap_uint<8> >(inter8, inter9, m_weights8, threshs8, numReps);
   // WidthAdjustedOutputStream<16 * L8_PE, 64, L8_MH / L8_PE>  wa_out(memOutStrm, numReps);
   StreamingMaxPool_Precision_Batch<L8_OFM_DIM, L9_K, L8_OFM_CH, ap_uint<32>, -1>(inter9,memOutStrm, numReps);
  
@@ -222,6 +222,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS INTERFACE s_axilite port=out bundle=control
 
 // partition PE arrays
+
 #pragma HLS RESOURCE variable=weights0 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights0 complete dim=1
@@ -233,6 +234,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs0 complete dim=1
 
 #pragma HLS ARRAY_PARTITION variable=threshs0 complete dim=2
+
 #pragma HLS RESOURCE variable=weights1 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights1 complete dim=1
@@ -244,6 +246,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs1 complete dim=1
 
 #pragma HLS ARRAY_PARTITION variable=threshs1 complete dim=2
+
 #pragma HLS RESOURCE variable=weights3 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights3 complete dim=1
@@ -255,6 +258,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs3 complete dim=1
 
 #pragma HLS ARRAY_PARTITION variable=threshs3 complete dim=2
+
 #pragma HLS RESOURCE variable=weights4 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights4 complete dim=1
@@ -266,6 +270,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs4 complete dim=1
 
 #pragma HLS ARRAY_PARTITION variable=threshs4 complete dim=2
+
 #pragma HLS RESOURCE variable=weights6 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights6 complete dim=1
@@ -277,6 +282,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs6 complete dim=1
 
 #pragma HLS ARRAY_PARTITION variable=threshs6 complete dim=2
+
 #pragma HLS RESOURCE variable=weights7 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights7 complete dim=1
@@ -288,6 +294,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs7 complete dim=1
 
 #pragma HLS ARRAY_PARTITION variable=threshs7 complete dim=2
+
 #pragma HLS RESOURCE variable=weights8 core=RAM_T2P_BRAM latency=1
 
 #pragma HLS ARRAY_PARTITION variable=weights8 complete dim=1

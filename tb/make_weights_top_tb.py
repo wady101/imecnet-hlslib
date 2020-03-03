@@ -7,15 +7,15 @@ import subprocess
 
 outFileConfig = open("memdata.h" , "wt")
 
-kernel_dim = 3 
+kernel_dim = 1 
 stride = 1
-input_precision = 4
+input_precision = 2
 ifm_channels = 1
 ofm_channels = 1
-ifm_dimension = 8
-ofm_dimension = 6
+ifm_dimension = 3
+ofm_dimension = 3
 
-activation_precision = 1
+activation_precision = 2
 expand = 1
 simd = 1
 pe = 1
