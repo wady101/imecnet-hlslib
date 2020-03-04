@@ -8,10 +8,10 @@
 #define IFMDim1 4 
 #define OFMDim1 4 
 #define STRIDE1 1 
-#define INPUT_PRECISION 2 
+#define INPUT_PRECISION 1 
 #define WMEM1 1 
 #define TMEM1 1 
-#define ACTIVATION_PRECISION 2 
+#define ACTIVATION_PRECISION 1 
 #ifndef PARAMS_HPP
 #define PARAMS_HPP
 static ap_uint<1> m_weights [1][1] = {{0b1 } }; 

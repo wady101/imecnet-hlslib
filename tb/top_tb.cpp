@@ -27,7 +27,7 @@ using namespace std;
 
 
 #define MAX_IMAGES 1
-void Testbench_conv(stream<ap_uint<IFM_Channels1*INPUT_PRECISION> > & in, stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > & out, unsigned int numReps);
+void Testbench_conv(stream<ap_uint<IFM_Channels1> > & in, stream<ap_uint<OFM_Channels1> > & out, unsigned int numReps);
 
 int main()
 {
@@ -35,7 +35,7 @@ int main()
   static	ap_uint<INPUT_PRECISION> IMAGE[MAX_IMAGES][IFMDim1*IFMDim1][IFM_Channels1];
 	static	ap_int<ACTIVATION_PRECISION> TEST[MAX_IMAGES][OFMDim1][OFMDim1][OFM_Channels1];
 	stream<ap_uint<IFM_Channels1*INPUT_PRECISION> > input_stream("input_stream");
-	stream<ap_uint<Outer*OFM_Channels1*ACTIVATION_PRECISION> > output_stream("output_stream");
+	stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > output_stream("output_stream");
   unsigned int counter = 0;
   for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
 		for (unsigned int oy = 0; oy < IFMDim1; oy++) {
@@ -50,6 +50,7 @@ int main()
 
 					counter++;
 				}
+				// printf("input_channel %s \n", input_channel.to_string().c_str());
 				input_stream.write(input_channel);
 
 			}

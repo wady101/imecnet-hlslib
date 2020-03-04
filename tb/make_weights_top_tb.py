@@ -9,13 +9,13 @@ outFileConfig = open("memdata.h" , "wt")
 
 kernel_dim = 1 
 stride = 1
-input_precision = 2
+input_precision = 1
 ifm_channels = 1
 ofm_channels = 1
 ifm_dimension = 3
 ofm_dimension = 3
 
-activation_precision = 2
+activation_precision = 1
 expand = 1
 simd = 1
 pe = 1

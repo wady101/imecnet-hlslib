@@ -28,8 +28,8 @@ void ConvLayer_Wallace(hls::stream<ap_uint<InStreamW>>  &in,
 			    unsigned const   reps
 				){
 	#pragma HLS INLINE OFF
-	//#pragma HLS DATAFLOW //remove this
-    unsigned const MatrixW = ConvKernelDim* ConvKernelDim * IFMChannels;
+	#pragma HLS DATAFLOW //remove this
+	unsigned const MatrixW = ConvKernelDim* ConvKernelDim * IFMChannels;
 	unsigned const Outer = OFMDim*IFMChannels;
     unsigned const MatrixH = OFMChannels;
     unsigned const InpPerImage = ConvKernelDim* IFMDim*IFMDim*IFMChannels/InStreamW; //Dimension of entire image * Kernel because of repepting of conv window
@@ -40,10 +40,8 @@ void ConvLayer_Wallace(hls::stream<ap_uint<InStreamW>>  &in,
    hls::stream<ap_uint<SIMD>> convInp("StreamingConvLayer_Batch.convInp");
    MEC<ConvKernelDim, IFMChannels, 1, IFMDim,
 			OFMDim, SIMD,1>(wa_in, convInp, reps);
-	std::cout<<"GEMM performed" << std::endl;
 	Wallace_Matrix_Vector_Activate_Batch<MatrixW, MatrixH, SIMD, PE, WMEM, TMEM, Outer>(static_cast<hls::stream<ap_uint<SIMD>>&>(convInp),
      static_cast<hls::stream<ap_uint<PE>>&>  (mvOut),
      weights, activation, reps * OFMDim);
-	 std::cout<<"MVAU performed" << std::endl;
                 }
 	

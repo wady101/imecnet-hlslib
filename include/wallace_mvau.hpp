@@ -212,7 +212,8 @@ for (unsigned of = 0; of<Outer; of++){
     for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
         accu[of][pe] = mac<SIMD>(accu[of][pe], weights[pe][tile], inElem);
-        printf("input %s weights %s accu  %s \n", inElem.to_string().c_str(),weights[pe][tile].to_string().c_str(),accu[of][pe].to_string().c_str());
+        // printf("input %s weights %s accu  %s \n", inElem.to_string().c_str(),weights[pe][tile].to_string().c_str(),accu[of][pe].to_string().c_str());
+        
 
     }
     //}
@@ -234,7 +235,7 @@ for (unsigned of = 0; of<Outer; of++){
           
           //This has to return a single bit value, else outElem is only going to take single-bit input. 
           outElem(pe,0) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
-
+          
 
           // outElem(pe,1) = accu[pe];
           
