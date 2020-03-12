@@ -1,0 +1,3 @@
+[submodule "xilinx-tiny-cnn"]
+	path = xilinx-tiny-cnn
+	url = https://github.com/Xilinx/xilinx-tiny-cnn.git

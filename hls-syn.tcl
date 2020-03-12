@@ -60,9 +60,9 @@ set config_clkperiod 10
 # set up project
 open_project $config_proj_name
 add_files $config_hwsrcdir/top.cpp -cflags "-std=c++0x -Iinclude/"
+add_files -tb $config_hwsrcdir/drivers/pynq_tb.cpp -cflags "-DOFFLOAD -DRAWHLS -std=c++0x -Iinclude/ -Ixilinx-tiny-cnn/" 
 
 #-I$config_bnnlibdir
-# add_files -tb $config_hwsrcdir/../sw/main_python.cpp -cflags "-DOFFLOAD -DRAWHLS -std=c++0x -I$config_bnnhostlibdir -I$config_bnnlibdir -I$config_tinycnn -I$config_hwsrcdir"
 #add_files -tb $config_bnnhostlibdir/foldedmv-offload.cpp -cflags "-DOFFLOAD -DRAWHLS -std=c++0x -I$config_bnnhostlibdir -I$config_bnnlibdir -I$config_tinycnn"
 #add_files -tb $config_bnnhostlibdir/rawhls-offload.cpp -cflags "-DOFFLOAD -DRAWHLS -std=c++0x -I$config_bnnhostlibdir -I$config_bnnlibdir -I$config_tinycnn"
 
@@ -75,7 +75,8 @@ config_interface -m_axi_addr64
 
 # syntesize and export
 create_clock -period $config_clkperiod -name default
-# csim_design -argv "$test_image 10 $expected_result" -compiler clang
+csim_design -compiler clang
+#-argv "$test_image 10 $expected_result" -compiler clang
 csynth_design
 export_design -format ip_catalog
 exit 0
