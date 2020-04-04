@@ -1,3 +1,5 @@
+#ifndef CONVLAYER
+#define CONVLAYER
 #include <ap_int.h>
 #include <hls_stream.h>
 
@@ -28,7 +30,7 @@ void ConvLayer_Wallace(hls::stream<ap_uint<InStreamW>>  &in,
 			    unsigned const   reps
 				){
 	#pragma HLS INLINE OFF
-	#pragma HLS DATAFLOW //remove this
+	// #pragma HLS DATAFLOW //remove this
 	unsigned const MatrixW = ConvKernelDim* ConvKernelDim * IFMChannels;
 	unsigned const Outer = OFMDim*IFMChannels;
     unsigned const MatrixH = OFMChannels;
@@ -44,4 +46,5 @@ void ConvLayer_Wallace(hls::stream<ap_uint<InStreamW>>  &in,
      static_cast<hls::stream<ap_uint<PE>>&>  (mvOut),
      weights, activation, reps * OFMDim);
                 }
-	
+
+#endif

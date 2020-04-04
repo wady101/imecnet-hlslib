@@ -1,44 +1,4 @@
-/******************************************************************************
- *  Copyright (c) 2016, Xilinx, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- *
- *  1.  Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *
- *  2.  Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in the
- *      documentation and/or other materials provided with the distribution.
- *
- *  3.  Neither the name of the copyright holder nor the names of its
- *      contributors may be used to endorse or promote products derived from
- *      this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- *  OR BUSINESS INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- *  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-/******************************************************************************
- *
- *
- * @file top.cpp
- *
- * HLS Description of the CNV-W1A2 with axi-lite based parameter loading (DoMemInit) 
- * and  dataflow architecture for image inference (DoCompute).
- * 
- *
- *****************************************************************************/
+
  
 #include "config.h"
 #define AP_INT_MAX_W 6144
@@ -139,7 +99,7 @@ void DoCompute(ap_uint<64> *in, ap_uint<64> *out, const unsigned int numReps) {
   stream<ap_uint<64>> inter0("DoCompute.inter0");
   stream<ap_uint<192>> inter0_1("DoCompute.inter0_1");
   stream<ap_uint<24>> inter0_2("DoCompute.inter0_2");
-// #pragma HLS STREAM variable=inter0_2 depth=128
+#pragma HLS STREAM variable=inter0_2 depth=128
   stream<ap_uint<64>> inter1("DoCompute.inter1");
 #pragma HLS STREAM variable=inter1 depth=128
   stream<ap_uint<64>> inter2("DoCompute.inter2");
@@ -187,14 +147,10 @@ void DoCompute(ap_uint<64> *in, ap_uint<64> *out, const unsigned int numReps) {
   StreamingMaxPool_Precision_Batch<L8_OFM_DIM, L9_K, L8_OFM_CH, ap_uint<32>, -1>(inter9,memOutStrm, numReps);
  
   // // fully connected layer
-  // StreamingFCLayer_Batch<L6_MW, L6_MH, L6_SIMD, L6_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Recast<Binary>>
-  //   (inter8, inter9,  weights6, threshs6, numReps, ap_resource_lut());
-  // StreamingFCLayer_Batch<L7_MW, L7_MH, L7_SIMD, L7_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Recast<Binary>>
-  //   (inter9, inter10, weights7, threshs7, numReps, ap_resource_lut());
   // StreamingFCLayer_Batch<L8_MW, L8_MH, L8_SIMD, L8_PE, Slice<ap_int<2>>, Slice<ap_uint<16>>, Recast<Binary>>
   //   (inter10, static_cast<hls::stream<ap_uint<16 * L8_PE>>&>(wa_out), weights8, PassThroughActivation<ap_uint<16>>(), numReps, ap_resource_lut());
   
- WidthAdjustedOutputStream<16 * L8_PE, 64, L8_MH / L8_PE>  wa_out(memOutStrm, numReps);
+//  WidthAdjustedOutputStream<16 * L8_PE, 64, L8_MH / L8_PE>  wa_out(memOutStrm, numReps);
   Stream2Mem_Batch<64, outBits/8>(memOutStrm, out, numReps);
 
   // StreamingCast<ap_uint<L11_M*OutputWidth_val>, ap_uint<16*OutputWidth_val>>(inter1, inter1_1, numReps);
@@ -308,7 +264,7 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS ARRAY_PARTITION variable=threshs8 complete dim=2
   if (doInit) {
     // DoMemInit(targetLayer, targetMem, targetInd, targetThresh, val);
-  } else {
+  // } else {
     DoCompute(in, out, numReps);
   }
 }

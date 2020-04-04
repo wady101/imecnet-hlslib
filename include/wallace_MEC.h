@@ -6,23 +6,6 @@ using namespace hls;
 #define MIN(x, y) (((x) > (y)) ? (y) : (x)) /* !< \brief Minimum value between x and y*/
 
 
-/**
- * \brief Sliding Window unit that produces output vectors for feeding
- * a Matrix_Vector_Activate_Batch, implementing the im2col algorithm. To be used only if 
- * ConvKernelDim%Stride = 0
- *
- * \tparam ConvKernelDim    Dimension of the convolutional kernel (assumed square)
- * \tparam IFMChannels      Number of Input Feature Maps
- * \tparam Input_precision  Number bits per pixel
- * \tparam IFMDim           Width and Heigth of the Input Feature Map (assumed square)
- * \tparam OFMDim           Width and Heigth of the Output Feature Map (assumed square)
- * \tparam SIMD             Number of input columns computed in parallel
- * \tparam Stride           Stride of the convolutional kernel
- * 
- * \param in                Input stream
- * \param out               Output stream
- * \param numReps           Number of time the function has to be repeatedly executed (e.g. number of images)
- */
 template<unsigned int ConvKernelDim, 
 		 unsigned int IFMChannels,
 		 unsigned int Input_precision,		
@@ -43,7 +26,7 @@ void MEC(
   const unsigned int cycles_write_block = (OFMDim * ConvKernelDim * ConvKernelDim * multiplying_factor);
   const unsigned int cycles_read_block = Stride * IFMDim * multiplying_factor;
   const unsigned int max_cycles = MAX(cycles_write_block,cycles_read_block);
-  const unsigned int baseIter = IFMDim*IFMDim * ConvKernelDim * multiplying_factor// Initial buffer
+  unsigned int baseIter = IFMDim*IFMDim * ConvKernelDim * multiplying_factor// Initial buffer
 			                  + OFMDim * MAX(cycles_write_block,cycles_read_block);
   unsigned int counter_internal_block = 0;
   unsigned int current_block_write = 0;
@@ -55,7 +38,7 @@ void MEC(
   for (unsigned int count_image = 0; count_image < numReps; count_image++) {
     for (unsigned int i = 0; i < baseIter; i++) {
 #pragma HLS PIPELINE II=1
-      if (inp < IFMDim * ConvKernelDim*multiplying_factor) {// Initial buffer of ConvKernelDim lines	
+      if (inp < IFMDim * ConvKernelDim*IFMChannels/SIMD) {// Initial buffer of ConvKernelDim lines	
         ap_uint<SIMD*Input_precision> inElem;
         inElem = in.read();
         // printf("DEBUG Input is  %s \n", inElem.to_string().c_str());
@@ -144,9 +127,3 @@ void MEC(
   } // End count_image
 } // End generator
 
-
-// I had a small question in the implementation of the sliding window unit (slidingwindow.h).
-//  In line https://github.com/Xilinx/finn-hlslib/blob/8b7f5f5dcd4e3dd17eddc41253040931af28179a/slidingwindow.h#L107 Why can't we only use the below if-else  block for reading ? 
-
-// https://github.com/Xilinx/finn-hlslib/blob/8b7f5f5dcd4e3dd17eddc41253040931af28179a/slidingwindow.h#L153 
-// Authors/Fellow members a real quick question here again.  Why are there 2 read blocks writing to *inputBuf* buffer in https://github.com/Xilinx/finn-hlslib/blob/master/slidingwindow.h ? I do understand the *inp* variable read block is used to 'kick-start' the writing to the buffer *inputBuf* (so that , but then why is there another concurrent read_block writing to *inputBuf*? For reference blocks - **Block1--** https://github.com/Xilinx/finn-hlslib/blob/d657d4dd36e19e488eeead67ee67c7b8acd33369/slidingwindow.h#L107 and  **Block2--** https://github.com/Xilinx/finn-hlslib/blob/d657d4dd36e19e488eeead67ee67c7b8acd33369/slidingwindow.h#L153 

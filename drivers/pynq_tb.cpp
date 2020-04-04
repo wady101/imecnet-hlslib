@@ -157,12 +157,11 @@ extern "C" void free_results(int * result) {
 }
 
 extern "C" int main(int argc, char** argv) {
-  if (argc != 5) {
-    cout << "4 parameters are needed: " << endl;
-    cout << "1 - folder for the binarized weights (binparam-***) - full path " << endl;
-    cout << "2 - path to image to be classified" << endl;
-    cout << "3 - number of classes in the dataset" << endl;
-    cout << "4 - expected result" << endl;
+  if (argc != 4) {
+    cout << "3 parameters are needed: " << endl;
+    cout << "1 - path to image to be classified" << endl;
+    cout << "2 - number of classes in the dataset" << endl;
+    cout << "3 - expected result" << endl;
     return 1;
   }
 
@@ -171,10 +170,10 @@ extern "C" int main(int argc, char** argv) {
   class_inference = 0;
   int scores[64];
 
-  class_inference = inference(argv[2], scores, atol(argv[3]), &execution_time);	
+  class_inference = inference(argv[1], scores, atol(argv[2]), &execution_time);	
 
   cout << "Detected class " << class_inference << " in " << execution_time << " microseconds" << endl;	
-  if (*class_inference != atol(argv[4])) {
+  if (*class_inference != atol(argv[3])) {
     return 1;
   } else {
     return 0;

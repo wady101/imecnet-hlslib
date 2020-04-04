@@ -1,53 +1,3 @@
-/******************************************************************************
- *  Copyright (c) 2019, Xilinx, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- *
- *  1.  Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *
- *  2.  Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in the
- *      documentation and/or other materials provided with the distribution.
- *
- *  3.  Neither the name of the copyright holder nor the names of its
- *      contributors may be used to endorse or promote products derived from
- *      this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- *  OR BUSINESS INTERRUPTION). HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- *  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *******************************************************************************/
-
-/*******************************************************************************
- *
- *  Authors: Giulio Gambardella <giuliog@xilinx.com>
- *           Thomas B. Preusser <thomas.preusser@utexas.edu>
- *             Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
- *           Christoph Doehring <cdoehrin@xilinx.com>
- *
- *  \file mvau.hpp
- *
- *  This file lists a templated funtion used to implement  
- *  Matrix-Vector-Activation Unit
- *
- *  This project has received funding from the European Union's Framework
- *  Programme for Research and Innovation Horizon 2020 (2014-2020) under
- *  the Marie Skłodowska-Curie Grant Agreement No. 751339.
- *
- *******************************************************************************/
-
 
 #include "hls_stream.h"
 #include <iostream> 
@@ -256,4 +206,3 @@ for (unsigned of = 0; of<Outer; of++){
     }
   }
 }
-//Sorry to bother you guys more, but I have another (stupid) question. In https://github.com/Xilinx/finn-hlslib/blob/2c95a9df8f682f500c92c44b2124d9175a8e5cfc/mvau.hpp#L168 . What exactly is happening to outElem? Like I understand the activation bit, but what is the purpose of Identity() here? From what I understand, we can now access each element of hls::stream outElem right? 

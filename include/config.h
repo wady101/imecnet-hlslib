@@ -1,5 +1,7 @@
 
 // Config.h generated from parser_gen.py
+#ifndef CONFIGH
+#define CONFIGH
 
 #define L0_K 5
 #define L0_WMEM 144
@@ -128,3 +130,4 @@ int TOTALLAYERS[] = {0, 1, 3, 4, 6, 7, 8};
 #define L8_APF  0
 #define L8_WPF  0
 #define L8_WPI  2
+#endif

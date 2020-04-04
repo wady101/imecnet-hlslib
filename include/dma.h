@@ -94,6 +94,22 @@ template<unsigned int DataWidth, unsigned int numBytes>
 void Stream2Mem(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out);
 
 /*!
+ * \brief DMA block writing HLS streams content in AXI4 pointed memory multiple times
+ * 
+ * It basically calls Stream2Mem function multiple times, possibly with bigger sizes so to increase
+ * the burst size
+ * 
+ * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
+ * \tparam numBytes Number of bytes to be read from the memory
+ *
+ * \param in Input HLS stream
+ * \param out Output memory pointer
+ * \param numReps Number of times the Stream2Mem function has to be called
+ */
+template<unsigned int DataWidth, unsigned int numBytes>
+void Stream2Mem_Batch(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out, const unsigned int numReps);
+
+/*!
  * \brief DMA block that accesses the external memory and outputs HLS streams multiple times
  *
  * It basically calls Mem2Stream function multiple times, possibly with bigger sizes so to increase
@@ -116,21 +132,7 @@ void Mem2Stream_Batch_external_wmem(ap_uint<DataWidth> * in,
     }
 }
 
-/*!
- * \brief DMA block writing HLS streams content in AXI4 pointed memory multiple times
- * 
- * It basically calls Stream2Mem function multiple times, possibly with bigger sizes so to increase
- * the burst size
- * 
- * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
- * \tparam numBytes Number of bytes to be read from the memory
- *
- * \param in Input HLS stream
- * \param out Output memory pointer
- * \param numReps Number of times the Stream2Mem function has to be called
- */
-template<unsigned int DataWidth, unsigned int numBytes>
-void Stream2Mem_Batch(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out, const unsigned int numReps);
+
 
 template<unsigned int DataWidth, unsigned int numBytes>
 void Mem2Stream(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > & out) {
