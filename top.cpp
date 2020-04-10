@@ -125,7 +125,7 @@ void DoCompute(ap_uint<64> *in, ap_uint<64> *out, const unsigned int numReps) {
 
   Mem2Stream_Batch<64, inBits/8>(in, inter0, numReps);
   StreamingDataWidthConverter_Batch<64, 192, (32 * 32 * 3 * 8) / 64>(inter0, inter0_1, numReps);
-  CASSERT_DATAFLOW(192%L0_SIMD==0)
+  // CASSERT_DATAFLOW(192%L0_SIMD==0)
   StreamingDataWidthConverter_Batch<192, 24, (32 * 32 * 3 * 8) / 192>(inter0_1, inter0_2, numReps);
   // StreamingDataWidthConverter_Batch<192, L0_SIMD, (32 * 32 * 3 * 8) / 192>(inter0_1, inter0_2, numReps);
 

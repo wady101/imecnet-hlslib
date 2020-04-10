@@ -42,7 +42,8 @@
 # ignore the first 2 args, since Vivado HLS also passes -f tclname as args
 set systemTime [clock seconds]
 
-set config_proj_name "BlackBoxJam_[clock format $systemTime -format %H_%M_%S]"
+# set config_proj_name "BlackBoxJam_[clock format $systemTime -format %H_%M_%S]"
+set config_proj_name "BlackBoxJam"
 puts "HLS project: $config_proj_name"
 set config_hwsrcdir "." 
 puts "HW source dir: $config_hwsrcdir"
@@ -75,8 +76,10 @@ config_interface -m_axi_addr64
 
 # syntesize and export
 create_clock -period $config_clkperiod -name default
-csim_design -compiler clang
-#-argv "$test_image 10 $expected_result" -compiler clang
+set test_image "/home/wadhwae/workspace/Training/BENN-PyTorch/cifar/WallaceNet/test_image/deer.bin"
+set expected_result 4
+csim_design -argv "$test_image 10 $expected_result" -compiler clang
+# -compiler clang
 csynth_design
 export_design -format ip_catalog
 exit 0
