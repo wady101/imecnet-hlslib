@@ -2,13 +2,13 @@
 
 // To be used for sliding_window.h 
 
-#define SIMD 2
+#define SIMD 1 // Here SIMD = IFM_Channels 
 #define KERNEL_DIM 3
-#define IFM_Channels 2
+#define IFM_Channels 2 // IFMChannels = SIMD
 #define IFMDim 6
 #define OFMDim 4
 #define STRIDE 1
-#define INPUT_PRECISION 8
+#define INPUT_PRECISION 1
 #define MMV 1
 
 

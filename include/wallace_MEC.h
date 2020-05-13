@@ -18,7 +18,7 @@ void MEC(
 		stream<ap_uint<SIMD*Input_precision> > & out,
 		const unsigned int numReps ) {
   const unsigned int multiplying_factor = IFMChannels/SIMD;
-  const unsigned int number_blocks = ConvKernelDim/Stride + 1 ;
+  const unsigned int number_blocks = ConvKernelDim/Stride  ;
   ap_uint<SIMD*Input_precision> inputBuf[number_blocks][Stride * IFMDim * multiplying_factor];
 
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=1
@@ -45,6 +45,7 @@ void MEC(
         inputBuf[current_block_write][current_line] = inElem; //buffer size is row=IFMDim col=ConvKernelDim/Stride
         current_line++;
         inp++;
+        // std::cout<<"inp variable"<<inp<<std::endl;
         if (current_line == Stride * IFMDim * multiplying_factor ) { // complete x-axis of I
           current_line = 0;
           current_block_write++;
@@ -82,8 +83,12 @@ void MEC(
                 k_y ++; //y axis down
               if (k_y == ConvKernelDim) {
                 k_y = 0;
-                inp = 0;
-                ofm_y ++; //y axis down
+                
+                ofm_y ++; //whole matrix complete --> ofm_y==OFMDim
+                // if (ofm_y<ConvKernelDim-1) {
+                if (ofm_y<multiplying_factor) {  
+                  inp = 0;
+                }
               }
               
               }

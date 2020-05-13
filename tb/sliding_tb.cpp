@@ -3,7 +3,7 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 using namespace hls;
-#define MAX_IMAGES 12
+#define MAX_IMAGES 1
 
 void Testbench(stream<ap_uint<IFM_Channels*INPUT_PRECISION> > & in, stream<ap_uint<IFM_Channels*INPUT_PRECISION> > & out, unsigned int numReps);
 
@@ -25,6 +25,7 @@ stream<ap_uint<IFM_Channels*INPUT_PRECISION> > output_stream("output_stream");
 					input_channel = input_channel >> INPUT_PRECISION;
 					input_channel(IFM_Channels*INPUT_PRECISION-1,(IFM_Channels-1)*INPUT_PRECISION)=input;
 					counter++;
+						
 
 					
 				}
