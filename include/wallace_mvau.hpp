@@ -106,12 +106,13 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 				  int const  reps
           ) {
 
-  // how many different rows each neuron will compute
-  // alternatively: number of vertical matrix chunks
-  unsigned const  NF = MatrixH / PE;
 
-  // how many synapse groups each row is split into
-  // alternatively: number of horizontal matrix chunks
+  // k_n / PE or OFMChannels / PE 
+  // number of vertical matrix chunks of O
+  unsigned const  NF = MatrixH / PE; 
+
+  // k_w*k_w*i_c / SIMD or 
+  // number of horizontal matrix chunks of K and (2nd+4th dim of L)
   unsigned const  SF = MatrixW / SIMD;
 
   // input vector buffers
@@ -120,7 +121,7 @@ void Wallace_Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
 
   // decltype(activation.init(0,0))  accu[MMV][PE];
-  ap_uint<SIMD*2> accu[Outer][PE];
+  ap_uint<SIMD> accu[Outer][PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
 
   unsigned  nf   = 0;
@@ -147,13 +148,13 @@ for (unsigned of = 0; of<Outer; of++){
     }
     // Initialisation for accu[of][pe]
     if(sf == 0) {
-     // for(unsigned of=0; of<Outer; of++){ 
-    //    #pragma HLS UNROLL
+     for(unsigned of=0; of<Outer; of++){ 
+       #pragma HLS UNROLL
       for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
           accu[of][pe] = 0;
       }
-    //  }
+     }
     }
 
     // compute matrix-vector product for each processing element
@@ -168,8 +169,8 @@ for (unsigned of = 0; of<Outer; of++){
     }
     //}
   } // EOL
-  // keep track of which line we are processing. tile indicates next line for weights
-    ++tile;
+  // keep track of which line we are processing. tile indicates next line for weights 
+    ++tile; // tile = WMEM
     if(++sf == SF) {
       // produce output and clear accumulators
       // auto  outElem = Identity().template operator()<TO>();
@@ -180,7 +181,7 @@ for (unsigned of = 0; of<Outer; of++){
 #pragma HLS UNROLL
           // outElem(pe,0) = Compare()(activation[pe][nf], accu[pe]) << pe;
           // outElem(of*PE+pe,of*PE) = accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
-          CASSERT_DATAFLOW(SIMD>=PE)
+     
           // outElem(of*SIMD+pe,of*SIMD) =  accu[of][pe];//activation[pe][tmem] >= accu[of][pe]? 1:0; 
           
           //This has to return a single bit value, else outElem is only going to take single-bit input. 
