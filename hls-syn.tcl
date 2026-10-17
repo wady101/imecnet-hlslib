@@ -76,7 +76,7 @@ config_interface -m_axi_addr64
 
 # syntesize and export
 create_clock -period $config_clkperiod -name default
-set test_image "/home/wadhwae/workspace/Training/BENN-PyTorch/cifar/WallaceNet/test_image/deer.bin"
+set test_image "$config_hwsrcdir/test_image/deer.bin"
 set expected_result 4
 csim_design -argv "$test_image 10 $expected_result" -compiler clang
 # -compiler clang
