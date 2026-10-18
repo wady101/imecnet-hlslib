@@ -100,4 +100,4 @@ This archive does not currently include a repository-wide license. Inherited sou
 
 ## Contact
 
-wady101 — [omegangregovitch@gmail.com](mailto:omegangregovitch@gmail.com)
+wady101
